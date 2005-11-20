@@ -1,0 +1,374 @@
+IMPLEMENTATION MOM
+
+IMPORT	Nat		COMPLETELY
+	NatConv		COMPLETELY
+	Int		COMPLETELY
+	IntConv		COMPLETELY
+	BoolConv	COMPLETELY
+	Array		COMPLETELY
+	ArrayConv	COMPLETELY
+	Seq		COMPLETELY
+	SeqReduce	COMPLETELY
+	SeqConv		COMPLETELY
+	SeqIndex	COMPLETELY
+	Denotation	COMPLETELY
+	DEBUG		COMPLETELY
+	ABORT 		COMPLETELY
+
+IMPORT	Diag		COMPLETELY
+	Pos		COMPLETELY
+	Options		COMPLETELY
+
+
+-- %$Repräsentation von Programmen$ --------------------------------------
+
+DATA program ==
+	program(main: nat, funTable: array[funEntry], code: array[opcode])
+
+DATA funEntry ==
+	funEntry(name: denotation, argc: nat, offset: nat)
+
+DATA opcode ==
+	LDPAR(index: nat)
+	LDNAT(value: nat)
+	SWAP
+	ADD
+	SUB
+	MUL
+	DIV
+	CALL(index: nat)
+	RET
+	BRANCH(mode: mode, offset: int)
+	ABORT
+
+DATA mode ==
+	always z nz eq lt error
+
+
+DEF `(program(Main, FTab, Code)) ==
+    "main " ++ `(Main) 
+    ++
+    "\nfunction table" 
+    ++
+    ( (++, "") / (0 .. #(FTab)-1)(\\n. "\n" ++ `(n) ++ ": " ++ `(FTab!n)) ) 
+    ++
+    "\ncode" ++
+    ( (++, "") / (0 .. #(Code)-1)(\\n. "\n" ++ `(n) ++ ": " ++ `(Code!n)) ) 
+
+DEF `(funEntry(Name, Argc, Offs)) == 
+    Name ++ "(" ++ `(Argc) ++ ") at " ++ `(Offs)
+
+DEF `(LDPAR(I)) == "LDPAR " ++ `(I)
+DEF `(LDNAT(C)) == "LDNAT " ++ `(C)
+DEF `(SWAP)     == "SWAP"
+DEF `(ADD)      == "ADD"
+DEF `(SUB)      == "SUB"
+DEF `(MUL)      == "MUL"
+DEF `(DIV)      == "DIV"
+DEF `(CALL(I))  == "CALL " ++ `(I)
+DEF `(RET)      == "RET"
+DEF `(BRANCH(M,O))  == "BRANCH " ++ `(M) ++ " " ++ `(O)
+DEF `(ABORT)    == "ABORT"
+
+
+DEF `(always) 	== "always"
+DEF `(z) 	== "z"
+DEF `(nz) 	== "nz"
+DEF `(eq) 	== "eq"
+DEF `(lt) 	== "lt"
+DEF `(error) 	== "error"
+
+
+-- %$Ausführung$ --------------------------------------------------------
+
+DATA value == 
+	undefined (reason : diag)
+	number    (value  : nat)
+
+DEF `(undefined(Why)) == `(Why)
+DEF `(number(Val))    == `(Val)
+
+DATA env == env(options: options, program: program)
+DATA status == abort continue exit
+DATA frame == frame(function: nat, params: array[nat], return: nat)
+
+FUN ` : frame -> denotation
+DEF `(frame(F, Ps, R)) ==
+    "{" ++ `(F) ++ "," ++ `(`)(Ps) ++ "," ++ `(R) ++ "}"
+
+FUN step : opcode ** env ** bool ** nat ** seq[nat] ** seq[frame] ->
+                  status ** bool ** nat ** seq[nat] ** seq[frame]
+
+-- Er? : error flag
+-- Pc  : program counter
+-- St  : value stack
+-- Dm  : dump (control stack)
+
+DEF step(LDNAT(C), Env, Er?, Pc, St, Dm) ==
+    (continue, Er?, Pc, C :: St, Dm)
+
+DEF step(LDPAR(I), Env, Er?, Pc, St, Dm AS frame(_, Params, _) :: _) ==
+    (continue, Er?, Pc, Params!I :: St, Dm)
+
+DEF step(SWAP, Env, Er?, Pc, V2 :: V1 :: St, Dm) ==
+    (continue, Er?, Pc, V1 :: V2 :: St, Dm)
+
+DEF step(ADD, Env, Er?, Pc, V2 :: V1 :: St, Dm) ==
+    -- V1+V2 <= max  <=>  V1 <= max-V2
+    IF V1 <= max - V2 THEN
+        (continue, Er?, Pc, (V1+V2) :: St, Dm)	
+    ELSE
+        (continue, true, Pc, max :: St, Dm)	
+    FI
+
+DEF step(SUB, Env, Er?, Pc, V2 :: V1 :: St, Dm) ==
+    IF V1 >= V2 THEN
+        (continue, Er?, Pc, (V1-V2) :: St, Dm)	
+    ELSE
+        (continue, true, Pc, 0 :: St, Dm)	
+    FI
+
+DEF step(MUL, Env, Er?, Pc, V2 :: V1 :: St, Dm) ==
+    -- V1*V2 <= max  <=>  V1 <= max div V2
+    IF V2 = 0 ORIF V1 <= max div V2 THEN
+        (continue, Er?, Pc, (V1*V2) :: St, Dm)
+    ELSE
+        (continue, true, Pc, max :: St, Dm)
+    FI
+
+DEF step(DIV, Env, Er?, Pc, V2 :: V1 :: St, Dm) ==
+    IF V2 |= 0 THEN
+        (continue, Er?, Pc, (V1 div V2) :: St, Dm)	
+    ELSE
+        (continue, true, Pc, 0 :: St, Dm)	
+    FI
+
+
+DEF step(CALL(I), Env, Er?, Pc, St, Dm) ==
+    LET entry == funTable(program(Env))!I
+    IN
+    (continue, Er?, offset(entry), drop(argc(entry), St), 
+     frame(I, asArray(revert(take(argc(entry), St))), Pc) :: Dm)
+
+
+DEF step(RET, Env, Er?, Pc, St, Frame :: Dm) ==
+    IF function(Frame) = main(program(Env)) THEN
+        -- return from MAIN
+        (exit, Er?, Pc, St, Dm)
+    ELSE
+        (continue, Er?, return(Frame), St, Dm)
+    FI
+
+
+DEF step(BRANCH(always, O), Env, Er?, Pc, St, Dm) ==
+    (continue, Er?, asNat(asInt(Pc)+O), St, Dm)
+
+DEF step(BRANCH(z, O), Env, Er?, Pc, V :: St, Dm) ==
+    IF V = 0 THEN
+        (continue, Er?, asNat(asInt(Pc)+O), St, Dm)
+    ELSE
+        (continue, Er?, Pc, St, Dm)
+    FI
+
+DEF step(BRANCH(nz, O), Env, Er?, Pc, V :: St, Dm) ==
+    IF V |= 0 THEN
+        (continue, Er?, asNat(asInt(Pc)+O), St, Dm)
+    ELSE
+        (continue, Er?, Pc, St, Dm)
+    FI
+
+DEF step(BRANCH(eq, O), Env, Er?, Pc, V2 :: V1 :: St, Dm) ==
+    IF V1 = V2 THEN
+        (continue, Er?, asNat(asInt(Pc)+O), St, Dm)
+    ELSE
+        (continue, Er?, Pc, St, Dm)
+    FI
+
+DEF step(BRANCH(lt, O), Env, Er?, Pc, V2 :: V1 :: St, Dm) ==
+    IF V1 < V2 THEN
+        (continue, Er?, asNat(asInt(Pc)+O), St, Dm)
+    ELSE
+        (continue, Er?, Pc, St, Dm)
+    FI
+
+DEF step(BRANCH(error, O), Env, Er?, Pc, St, Dm) ==
+    IF Er? THEN
+        (continue, Er?, asNat(asInt(Pc)+O), St, Dm)
+    ELSE
+        (continue, Er?, Pc, St, Dm)
+    FI
+
+DEF step(ABORT, Env, Er?, Pc, St, Dm) ==
+    (abort, Er?, Pc, St, Dm)
+
+DEF step(Opc, Env, Er?, Pc, St, Dm) ==
+    LET Status ==
+          ABORT("inconsistent MOM state\n" ++
+                "at " ++ `(Pc) ++ ": " ++ `(Opc) ++ "\n" ++
+	        show(Env, Er?, Pc, St, Dm))
+    IN
+    (Status, Er?, Pc, St, Dm)
+
+
+-- we want a single integrated loop, hence hint inlining of step:
+/$ unfold [step] $/
+
+
+FUN loop : env ** bool ** nat ** seq[nat] ** seq[frame] -> value
+DEF loop(Env, Er?, Pc, St, Dm) ==
+    LET Opc == code(program(Env))!Pc
+        (Mode0, Er1?, Pc1, St1, Dm1) == step(Opc, Env, Er?, succ(Pc), St, Dm)
+        Mode ==
+	   IF debug(options(Env)) THEN
+	       PRINT(true, 
+	             `(Pc) ++ ": " ++
+	             `(Opc) ++ " -->\n" ++ show(Env, Er1?, Pc1, St1, Dm1) 
+		                        ++ "\n",
+	             Mode0)
+	   ELSE
+	       Mode0
+	   FI
+    IN
+    IF continue?(Mode) THEN
+        loop(Env, Er1?, Pc1, St1, Dm1)
+    IF abort?(Mode) THEN
+        undefined(error(global, "execution aborted in function " ++
+	                  name(funTable(program(Env))!function(ft(Dm1)))))
+    ELSE
+        number(ft(St))
+    FI
+
+FUN show : env ** bool ** nat ** seq[nat] ** seq[frame] -> denotation
+DEF show(Env, Er?, Pc, St, Dm) ==
+    " pc    = " ++ `(Pc) 
+    ++ 
+    "\n error = " ++ `(Er?)
+    ++
+    "\n stack = " ++ `("", " ", " ...")(`)(take(5, St)) 
+    ++ 
+    "\n dump  = " ++ `("", " ", " ...")(`)(take(3, Dm)) 
+
+
+DEF execute(Opts, Prog) ==
+    LET entry == funTable(Prog)!main(Prog)
+    IN
+    loop(env(Opts, Prog), false, offset(entry), <>, 
+                          frame(main(Prog), empty, 0) :: <>)
+
+-- %$OASYS Testumgebung$ -------------------------------------------------
+
+FUN r: program -> value
+DEF r(Prog) == execute(options(true, false, false, ""), Prog)
+
+FUN rn: program -> value
+DEF rn(Prog) == execute(options(false, false, false, ""), Prog)
+
+FUN p : seq[opcode] -> program
+DEF p(Opcs) ==
+    program(0,
+      asArray(
+        funEntry("MAIN", 0, 0) ::
+	<>
+      ),
+      asArray(
+        Opcs
+      )
+    )
+
+FUN a : nat ** nat ** opcode -> program
+DEF a(Arg1, Arg2, Opc) ==
+    p(LDNAT(Arg1) :: LDNAT(Arg2) :: Opc :: RET :: <>)
+
+
+
+FUN fac: nat -> program
+DEF fac(N) ==
+    program(0,
+      asArray(
+        funEntry("MAIN", 0, 0) ::
+	funEntry("fac", 1, 3) ::
+	<>
+      ),
+      asArray(
+	-- MAIN
+	LDNAT(N) ::
+	CALL(1) ::
+	RET ::
+	-- fac
+	LDPAR(0) ::
+	BRANCH(nz,2) ::
+	LDNAT(1) ::
+	RET ::
+	LDPAR(0) ::
+	LDPAR(0) ::
+	LDNAT(1) ::
+	SUB ::
+	CALL(1) ::
+	MUL ::
+	RET ::
+	<>
+      )
+    )
+
+/*
+DEF tak(x:nat,y:nat,z:nat):nat ==
+  IF not(lt(y,x)) THEN z
+  ELSE
+    tak(tak(sub(x,1),y,z),
+        tak(sub(y,1),z,x),
+        tak(sub(z,1),x,y))
+  FI
+
+DEF MAIN:nat == tak(18,12,6)       
+*/
+
+FUN tak: nat ** nat ** nat -> program
+DEF tak(X,Y,Z) ==
+    program(0,
+      asArray(
+        funEntry("MAIN", 0, 0) ::
+	funEntry("tak", 3, 5) ::
+	<>
+      ),
+      asArray(
+	-- MAIN
+	LDNAT(X) ::
+	LDNAT(Y) ::
+	LDNAT(Z) ::
+	CALL(1) ::
+	RET ::
+	-- tak
+	-- IF not(lt(y,x))
+	LDPAR(1) ::
+	LDPAR(0) ::
+	BRANCH(lt,2) ::
+	-- z
+	LDPAR(2) ::
+	RET ::
+	-- tak(sub(x,1),y,z)
+	LDPAR(0) ::
+	LDNAT(1) ::
+	SUB ::
+	LDPAR(1) ::
+	LDPAR(2) ::
+	CALL(1) ::
+	-- tak(sub(y,1),z,x)
+	LDPAR(1) ::
+	LDNAT(1) ::
+	SUB ::
+	LDPAR(2) ::
+	LDPAR(0) ::
+	CALL(1) ::
+	-- tak(sub(z,1),x,y)
+	LDPAR(2) ::
+	LDNAT(1) ::
+	SUB ::
+	LDPAR(0) ::
+	LDPAR(1) ::
+	CALL(1) ::
+	-- tak(...)
+	CALL(1) ::
+	RET ::
+	<>
+      )
+    )

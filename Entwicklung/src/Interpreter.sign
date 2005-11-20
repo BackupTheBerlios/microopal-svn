@@ -1,0 +1,23 @@
+/* % 
+Der Interpreter. NOT YET IMPLEMENTED.
+*/
+
+SIGNATURE Interpreter
+
+IMPORT	Absy		ONLY absy:SORT
+	Diag		ONLY diag:SORT
+	Options		ONLY options:SORT
+
+IMPORT	Nat		ONLY nat:SORT	
+
+
+TYPE value == 
+	undefined (reason : diag)
+	number    (value  : nat)
+	boolean   (value  : bool)
+
+FUN ` : value -> denotation
+
+FUN interpret : options ** absy -> value
+
+

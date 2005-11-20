@@ -1,0 +1,50 @@
+IMPLEMENTATION Token
+
+IMPORT	NatConv		ONLY `
+	Pos		ONLY pos `
+	Denotation	ONLY ++
+
+	
+DATA token ==
+	id 	(pos: pos, value: denotation)
+	number	(pos: pos, value: nat)
+	kDEF	(pos: pos)
+	kMAIN	(pos: pos)
+	kCOLON	(pos: pos)
+	kCOMMA	(pos: pos)
+	kDEFAS	(pos: pos)
+	kOPEN	(pos: pos)
+	kCLOSE	(pos: pos)
+	knat	(pos: pos)
+	kbool	(pos: pos)
+	ktrue	(pos: pos)
+	kfalse	(pos: pos)
+	kIF	(pos: pos)
+	kTHEN	(pos: pos)
+	kELSE	(pos: pos)
+	kFI  	(pos: pos)
+	kEOF	(pos: pos)
+
+DEF `(Tok) == ``(Tok) ++ " at " ++ `(pos(Tok))
+
+FUN `` : token -> denotation
+DEF ``(id(_, Value)) == Value
+DEF ``(number(_, Value)) == `(Value)
+DEF ``(kDEF(_)) == """DEF"""
+DEF ``(kMAIN(_)) == "MAIN"
+DEF ``(kDEFAS(_)) == """=="""
+DEF ``(kCOLON(_)) == """:"""
+DEF ``(kCOMMA(_)) == ""","""
+DEF ``(kOPEN(_)) == """("""
+DEF ``(kCLOSE(_)) == """)"""
+DEF ``(knat(_)) == """nat"""
+DEF ``(kbool(_)) == """bool"""
+DEF ``(ktrue(_)) == """true"""
+DEF ``(kfalse(_)) == """false"""
+DEF ``(kIF(_)) == """IF"""
+DEF ``(kTHEN(_)) == """THEN"""
+DEF ``(kELSE(_)) == """ELSE"""
+DEF ``(kFI(_)) == """FI"""
+DEF ``(kEOF(_)) == """<EOF>"""
+
+	

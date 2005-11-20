@@ -1,0 +1,9 @@
+/* %
+Die abstrakte Syntax. NOT YET IMPLEMENTED.
+*/
+
+SIGNATURE Absy
+
+SORT absy 	
+
+FUN ` : absy -> denotation

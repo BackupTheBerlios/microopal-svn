@@ -1,0 +1,54 @@
+/* % Die virtuelle Maschine MicroOM. */
+
+SIGNATURE MOM
+
+IMPORT	Diag		ONLY diag:SORT
+	Options		ONLY options:SORT
+
+IMPORT	Int		ONLY int:SORT
+	Nat		ONLY nat:SORT
+	Array[funEntry]	ONLY array:SORT
+	Array[opcode]	ONLY array:SORT
+
+
+-- %$Repräsentation von Programmen$ --------------------------------------
+
+TYPE program ==
+	program(main: nat, funTable: array[funEntry], code: array[opcode])
+
+TYPE funEntry ==
+	funEntry(name: denotation, argc: nat, offset: nat)
+
+TYPE opcode ==
+	LDPAR(index: nat)
+	LDNAT(value: nat)
+	SWAP
+	ADD
+	SUB
+	MUL
+	DIV
+	CALL(index: nat)
+	RET
+	BRANCH(mode: mode, offset: int)
+	ABORT
+
+TYPE mode ==
+	always z nz eq lt error
+
+
+
+FUN ` : program -> denotation
+FUN ` : funEntry -> denotation
+FUN ` : opcode -> denotation
+FUN ` : mode -> denotation
+
+
+-- %$Ausführung$ --------------------------------------------------------
+
+TYPE value == 
+	undefined (reason : diag)
+	number    (value  : nat)
+
+FUN ` : value -> denotation
+
+FUN execute : options ** program -> value

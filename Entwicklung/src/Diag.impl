@@ -1,0 +1,37 @@
+IMPLEMENTATION Diag
+
+IMPORT	Pos		COMPLETELY
+
+IMPORT	Seq		COMPLETELY
+	SeqConv		COMPLETELY
+	SeqSort		ONLY merge
+	Nat		COMPLETELY
+	Denotation	COMPLETELY
+
+DATA diag == diag(msgs: seq[msg])
+
+DATA msg == msg(pos: pos, text: denotation)
+
+
+DEF okay == diag(<>)
+DEF okay?(diag(Msgs)) == <>?(Msgs)
+
+DEF error(Pos, Text) == diag(%(msg(Pos, Text)))
+
+/* % Die Messages werden bei der Vereinigung nach Position sortiert: */
+DEF diag(Msgs1) + diag(Msgs2) == 
+    diag(merge(<)(Msgs1, Msgs2))
+
+    FUN < : msg ** msg -> bool
+    DEF msg(Pos1, _) < msg(Pos2, _) == lineNo(Pos1) < lineNo(Pos2)
+
+
+DEF `(diag(Msgs)) ==
+    `("","\n","")(`)(Msgs)
+
+FUN ` : msg -> denotation
+DEF `(msg(Pos, Text)) == "ERROR at " ++ `(Pos) ++ ": " ++ Text
+
+
+    
+

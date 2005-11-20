@@ -1,0 +1,115 @@
+/* %
+Die Implementierung des Scanners erfolgt mit Hilfe eines
+(f)lex Programms (siehe scanner.lex und makescanner),
+welches die Eingabe zeilenweise in der folgenden Form
+aufbereitet:
+@example
+  <n>i<value> 
+  <n>n<value> 
+  <n>kDEF 
+  ...
+@end example
+*/
+
+IMPLEMENTATION Scanner
+
+IMPORT	Token		COMPLETELY
+	Diag		COMPLETELY
+	Pos		COMPLETELY
+	Options		COMPLETELY
+
+IMPORT	Seq		COMPLETELY
+	SeqMap		ONLY *
+	Map		COMPLETELY
+	String		COMPLETELY
+	StringConv	ONLY `
+	Char		COMPLETELY
+	CharConv	ONLY asDigitNat
+	Denotation	COMPLETELY
+	Nat		COMPLETELY
+
+IMPORT	Com		COMPLETELY
+	ComCompose	COMPLETELY
+	ComCheck	ONLY check
+	File		COMPLETELY
+	Process		ONLY popen pclose -- leider "deprecated"
+
+
+DATA scanResult ==
+	failure(reasons: diag)
+	success(tokens: seq[token])
+
+FUN scanCommand : denotation
+DEF scanCommand == "./scanner"  -- das muß in der Realität natürlich
+                                -- so definiert sein, daß das 
+				-- Hilfsprogramm immer gefunden wird
+
+
+DEF scan(Opts) ==
+    LET FileName == source(Opts) ++ ".mo"
+    IN
+    check(\\ Reason . "IO error scanning """ ++ FileName ++ """: " ++ Reason,
+      LET Command == scanCommand ++ " <" ++ FileName
+      IN
+      popen(Command, "r")		& (\\ File .
+      readLines(File)			& (\\ Lines .
+      pclose(File)			& (\\ _ .
+      LET DenoLines == ` * Lines    -- convert strings to denotations
+      IN
+      succeed(tokenize(DenoLines, okay, <>))
+      )))
+    )
+
+
+/* % 
+Die Sequenz der Tokens wird aus Effiziengründen revertiert aufgebaut:
+*/
+
+FUN tokenize : seq[denotation] ** diag ** seq[token] -> scanResult
+
+DEF tokenize(Line :: Lines, Diag, Tokens) ==
+    LET (Pos, I) == getPos(Line, 0,0)
+    IN
+    IF Line!I = !("i") THEN
+    	tokenize(Lines, Diag, id(Pos, slice(Line, I+1, #(Line)-1)) :: Tokens)
+    IF Line!I = !("n") THEN
+    	tokenize(Lines, Diag, 
+	         number(Pos, !(slice(Line, I+1, #(Line)-1))) :: Tokens)
+    IF Line!I = !("?") THEN
+        tokenize(Lines, Diag + error(Pos, "illegal character: " ++ 
+	                                  slice(Line, I+1, #(Line)-1)),
+		 Tokens)
+    IF Line!I = !("k") THEN
+    	tokenize(Lines, Diag, 
+	         fun(keywords!slice(Line, I+1, #(Line)-1))(Pos) :: Tokens)
+    FI
+DEF tokenize(<>, Diag, Tokens) ==
+    IF okay?(Diag) THEN success(revert(kEOF(global) :: Tokens))
+                   ELSE failure(Diag) FI
+
+
+FUN keywords : map[denotation, <, cons]
+DATA cons == cons(fun: pos -> token)
+DEF keywords ==
+    def("DEF", cons(kDEF),
+    def("MAIN", cons(kMAIN),
+    def(":", cons(kCOLON),
+    def("==", cons(kDEFAS),
+    def(",", cons(kCOMMA),
+    def("(", cons(kOPEN),
+    def(")", cons(kCLOSE),
+    def("nat", cons(knat),
+    def("bool", cons(kbool),
+    def("true", cons(ktrue),
+    def("false", cons(kfalse),
+    def("IF", cons(kIF),
+    def("ELSE", cons(kELSE),
+    def("THEN", cons(kTHEN),
+    def("FI", cons(kFI),
+       {})))))))))))))))
+
+
+FUN getPos : denotation ** nat ** nat-> pos ** nat
+DEF getPos(Line, I, P) == 
+    IF digit?(Line!I) THEN getPos(Line, I + 1, 10*P + asDigitNat(Line!I))
+                      ELSE (pos(P), I) FI

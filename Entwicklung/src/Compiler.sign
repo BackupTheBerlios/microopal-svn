@@ -1,0 +1,15 @@
+/* % Der Kontextchecker. NOT YET IMPLEMENTED. */
+SIGNATURE Compiler
+
+IMPORT	Absy		ONLY absy:SORT
+	Diag		ONLY diag:SORT
+	Options		ONLY options:SORT
+	MOM		ONLY program:SORT
+
+
+TYPE compileResult == 
+	success (program: program'MOM)
+	failure (reasons: diag)
+
+FUN compile : options ** absy -> compileResult
+

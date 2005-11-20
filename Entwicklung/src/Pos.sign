@@ -1,0 +1,24 @@
+/* % 
+Die Struktur der Positionen -- Repräsentation von 
+Referenzen auf den Quelltext. In MOC werden Zeilnummern
+verwendet (aber eine Position kann theoretisch auch
+etwas komplexeres darstellen).
+*/
+
+
+SIGNATURE Pos
+
+IMPORT	Nat	ONLY nat
+
+
+TYPE pos == pos(lineNo : nat)
+FUN ` : pos -> denotation
+
+
+/* % Eine spezielle Konstante zur Auszeichnung keiner Position
+(dargestellt als Zeile 0): */
+
+FUN global : pos
+
+
+

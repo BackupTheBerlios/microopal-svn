@@ -1,0 +1,12 @@
+IMPLEMENTATION Parser
+
+IMPORT	Diag		COMPLETELY
+	Pos		COMPLETELY
+
+
+DATA parseResult == 
+	success(absy: absy)
+	failure(reasons: diag)
+
+DEF parse(Opts, Toks) ==
+    failure(error(global, "the parser is not yet implemented!"))

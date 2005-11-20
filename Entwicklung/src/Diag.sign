@@ -1,0 +1,35 @@
+/* % 
+Die Diagnosen -- abstrakte Repräsentation von Fehlermeldungen.
+*/
+
+SIGNATURE Diag
+
+IMPORT	Pos	ONLY pos:SORT
+	
+
+SORT diag
+
+/* % Die leeren Diagnosen: */
+
+FUN okay: diag
+
+
+/* % Erzeugung einer einzelnen Fehlerdiagnose: */
+
+FUN error : pos ** denotation -> diag
+
+
+/* % Vereinigung von Diagnosen: */
+
+FUN + : diag ** diag -> diag
+
+
+/* % Test, ob keine Diagnosen vorliegen: */
+
+FUN okay? : diag -> bool
+
+
+/* % Visualisierung von Diagnosen: */
+
+FUN ` : diag -> denotation
+

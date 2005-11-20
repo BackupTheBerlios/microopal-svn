@@ -1,0 +1,14 @@
+IMPLEMENTATION Pos
+
+IMPORT 	Nat		COMPLETELY
+	NatConv		ONLY `
+	Denotation	ONLY ++
+
+	
+DATA pos == pos(lineNo : nat)
+
+DEF `(pos(0)) == "global"
+DEF `(pos(succ(Line))) == "line " ++ `(succ(Line))
+
+DEF global == pos(0)
+

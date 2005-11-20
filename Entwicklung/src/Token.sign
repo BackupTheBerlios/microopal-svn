@@ -1,0 +1,33 @@
+/* % 
+Die Struktur der Tokens -- Repräsentation von Terminalsymbolen
+mit ihrer Position und ggf. ihrem lexikalischem Wert.
+*/
+
+SIGNATURE Token
+
+IMPORT	Nat		ONLY nat
+	Pos		ONLY pos
+
+	
+TYPE token ==
+	id 	(pos: pos, value: denotation)
+	number	(pos: pos, value: nat)
+	kDEF	(pos: pos)
+	kMAIN	(pos: pos)
+	kCOLON	(pos: pos)
+	kDEFAS	(pos: pos)
+	kCOMMA	(pos: pos)
+	kOPEN	(pos: pos)
+	kCLOSE	(pos: pos)
+	knat	(pos: pos)
+	kbool	(pos: pos)
+	ktrue	(pos: pos)
+	kfalse	(pos: pos)
+	kIF	(pos: pos)
+	kTHEN	(pos: pos)
+	kELSE	(pos: pos)
+	kFI  	(pos: pos)
+	kEOF	(pos: pos)
+
+
+FUN ` : token -> denotation

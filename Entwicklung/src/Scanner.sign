@@ -1,0 +1,23 @@
+/* % 
+Der Scanner -- liest den Inhalt einer Datei, scannt sie,
+und liefert entweder die Sequenz der Tokens oder eine Anzahl
+von Diagnosen, falls Fehler beim Scannen auftauchen.
+*/
+
+SIGNATURE Scanner
+
+IMPORT	Diag		ONLY diag:SORT
+	Token		ONLY token:SORT
+	Options		ONLY options:SORT
+
+IMPORT	Seq[token]	ONLY seq:SORT
+	Com[scanResult]	ONLY com:SORT	
+
+
+TYPE scanResult ==
+	failure(reasons: diag)
+	success(tokens: seq[token])
+
+FUN scan : options -> com[scanResult]
+
+

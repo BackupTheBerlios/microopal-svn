@@ -1,0 +1,12 @@
+#!/bin/sh
+LEX=flex
+LEXLIBPATH=-L/usr/local/lib
+LEXLIB=-lfl
+
+
+# Falls GNU flex nicht installiert ist:
+#LEX=lex
+#LEXLIB=-ll
+
+$LEX -oscanner.c scanner.lex
+cc $LEXLIBPATH -o scanner scanner.c $LEXLIB

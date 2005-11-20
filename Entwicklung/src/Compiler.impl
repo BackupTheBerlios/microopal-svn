@@ -1,0 +1,15 @@
+IMPLEMENTATION Compiler
+
+IMPORT	Diag		COMPLETELY
+	Pos		COMPLETELY
+
+
+DATA compileResult == 
+	success (program: program'MOM)
+	failure (reasons: diag)
+
+DEF compile(_,_) ==
+    failure(error(global, "the compiler is not yet implemented!"))
+
+
+

@@ -1,0 +1,18 @@
+/* % 
+Der Kontextchecker. NOT YET IMPLEMENTED.
+*/
+
+SIGNATURE Checker
+
+IMPORT	Absy		ONLY absy:SORT
+	Diag		ONLY diag:SORT
+	Options		ONLY options:SORT
+
+
+TYPE checkResult == 
+	success
+	failure(reasons: diag)
+
+FUN check : options ** absy -> checkResult
+
+

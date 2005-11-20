@@ -1,0 +1,20 @@
+IMPLEMENTATION Interpreter
+
+IMPORT	Diag		COMPLETELY
+	Pos		COMPLETELY
+	NatConv		ONLY `
+	BoolConv	ONLY `
+
+
+DATA value == 
+	undefined (reason : diag)
+	number    (value  : nat)
+	boolean   (value  : bool)
+
+DEF `(undefined(Why)) == `(Why)
+DEF `(number(Val))    == `(Val)
+DEF `(boolean(Val))   == `(Val)
+
+
+DEF interpret(Opts, Absy) ==
+    undefined(error(global, "the interpreter is not yet implemented!"))

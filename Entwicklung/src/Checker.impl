@@ -1,0 +1,13 @@
+IMPLEMENTATION Checker
+
+IMPORT	Diag		COMPLETELY
+	Pos		COMPLETELY
+
+DATA checkResult == 
+	success
+	failure(reasons: diag)
+
+DEF check(Opts, Absy) ==
+    failure(error(global, "the context checker is not yet implemented!"))
+
+

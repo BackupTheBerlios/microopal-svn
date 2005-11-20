@@ -1,0 +1,159 @@
+/* % 
+Der mOPAL Compilertreiber.
+ACHTUNG. Für die Meilensteine 2 und 3 wird sich in dieser Vorgabe
+noch etwas ändern! 
+*/
+
+IMPLEMENTATION MOC
+
+IMPORT	Pos		COMPLETELY
+	Diag		COMPLETELY
+	Token		COMPLETELY
+	Options		COMPLETELY
+	Absy		COMPLETELY
+	MOM  		COMPLETELY
+
+IMPORT	Scanner		COMPLETELY
+	Parser		COMPLETELY
+	Checker		COMPLETELY
+	Interpreter	COMPLETELY
+	Compiler   	COMPLETELY
+
+IMPORT	DEBUG		COMPLETELY
+
+IMPORT	Com		COMPLETELY
+	ComCompose	COMPLETELY
+	Void		COMPLETELY
+	ProcessArgs	COMPLETELY
+	File		COMPLETELY
+	FileName	ONLY splitSuffix
+
+IMPORT	Seq		COMPLETELY
+	SeqConv		COMPLETELY
+	Denotation	COMPLETELY
+	Nat		COMPLETELY
+	
+
+
+-- %$Startup$ -------------------------------------------------------------
+
+DEF moc ==
+    args						& (\\ Args .
+    analyzeOpts(rt(Args), options(false, false, false, ""))
+                                                  	& (\\ Opts .	
+    compile(Opts)
+    ))
+
+FUN analyzeOpts : seq[denotation] ** options -> com[options]
+DEF analyzeOpts(Arg :: Args, options(Debug, Interp, Dump, Source)) ==
+    IF Arg = "-d"    THEN analyzeOpts(Args, options(true, Interp, Dump,
+                                                    Source))
+    IF Arg = "-i"    THEN analyzeOpts(Args, options(Debug, true, Dump,
+                                                    Source))
+    IF Arg = "-S"    THEN analyzeOpts(Args, options(Debug, Interp, true,
+                                                    Source))
+    IF ~(Arg <| "-") THEN 
+    	LET (BaseName, _) == splitSuffix(Arg, ".")
+	IN
+    	analyzeOpts(Args, options(Debug, Interp, Dump, BaseName))
+    ELSE
+        usageAndExit
+    FI
+
+DEF analyzeOpts(<>, Opts AS options(Debug, Interp, Dump, Source)) ==
+    IF #(Source) = 0 THEN usageAndExit
+                     ELSE succeed(Opts) FI
+
+
+FUN usageAndExit : com[options]
+DEF usageAndExit ==
+    writeLine(stdErr, "usage: <moc> [ -d ] [ -i ] [ -S ] <source>") &
+    exit(1)
+
+-- %$Oasys Testumgebung$ ---------------------------------------------------
+
+FUN db : seq[denotation] -> com[void]
+
+DEF db(Args) ==
+    analyzeOpts(Args, options(false, false, false, ""))        & (\\ Opts .
+    compile(Opts)
+    )
+
+
+FUN db : denotation -> com[void]
+DEF db(File) == db(%("-d", File))
+                                             
+
+FUN dbi : denotation -> com[void]
+DEF dbi(File) == db(%("-d", "-i", File))
+                                             
+
+-- %$Der Treiber$ ----------------------------------------------------------
+
+FUN compile : options -> com[void]
+
+DEF compile(Opts) == 
+    scan(Opts)					& (\\ ScanResult .
+    ( IF success?(ScanResult) THEN
+          LET Tokens == PRINT(debug(Opts),
+	                      \\ . `("","\n","")(`)(tokens(ScanResult)),
+			      tokens(ScanResult))
+	  IN
+          succeed(Tokens)
+      ELSE 
+          showDiag(reasons(ScanResult)) & exit(1)
+      FI
+    )						& (\\ Tokens .
+    LET ParseResult == parse(Opts, Tokens)
+    IN
+    ( IF success?(ParseResult) THEN
+          LET Absy == PRINT(debug(Opts),
+	                     \\ . `(absy(ParseResult)),
+			    absy(ParseResult))
+	  IN
+          succeed(Absy)
+      ELSE 
+          showDiag(reasons(ParseResult)) & exit(2)
+      FI
+    )						& (\\ Absy .
+    LET CheckResult == check(Opts, Absy)
+    IN
+    ( IF success?(CheckResult) THEN
+          succeed(nil)
+      ELSE 
+          showDiag(reasons(CheckResult)) & exit(3)
+      FI
+    )						& (\\ _  .
+    IF interp(Opts) THEN
+      writeLine(stdOut, "starting interpretation ...") &
+      writeLine(stdOut, "MAIN == " ++ `(interpret(Opts, Absy)))
+    ELSE
+      LET CompileResult == compile(Opts, Absy)
+      IN
+      ( IF success?(CompileResult) THEN
+            LET Prog == PRINT(debug(Opts),
+	                      \\ . `(program(CompileResult)),
+			      program(CompileResult))
+            IN
+	    IF dumpCode(Opts) THEN
+	       open(source(Opts) ++ ".S", "w")  		& (\\ File .
+	       writeLine(File, `(program(CompileResult)))	& (\\ _ .
+	       close(File)
+	       ))
+	    ELSE
+               writeLine(stdOut, "starting execution ...") &
+               writeLine(stdOut, "MAIN == " ++ `(execute(Opts, Prog)))
+	    FI
+	ELSE
+            showDiag(reasons(CompileResult)) & exit(3)
+        FI
+      )
+    FI
+    ))))
+
+    
+    
+FUN showDiag : diag -> com[void]
+DEF showDiag(Diag) == writeLine(stdErr, `(Diag))
+
+

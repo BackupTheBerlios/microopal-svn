@@ -1,0 +1,22 @@
+/* % 
+Die Struktur der Optionen -- Repräsentation von Optionen
+des Programmlaufs von MOC.
+*/
+
+SIGNATURE Options
+
+
+TYPE options == 
+    options(debug: bool,        -- ob Debuginformationen ausgegeben werden
+                                -- sollen
+	    interp: bool,       -- ob nach dem Typcheck der Interpreter
+	                        -- aufgerufen werden soll
+            dumpCode: bool,	-- ob nach der Kompilation der mOM code
+	                        -- gedumpt werden soll
+	    source: denotation  -- der Basisname des Quellfiles
+	                        -- (ohne Endung ".moc")
+    )
+	
+FUN ` : options -> denotation
+
+

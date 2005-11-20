@@ -1,0 +1,20 @@
+/* % 
+Der Parser. NOT YET IMPLEMENTED.
+*/
+
+SIGNATURE Parser
+
+IMPORT	Absy		ONLY absy:SORT
+	Diag		ONLY diag:SORT
+	Options		ONLY options:SORT
+	Token		ONLY token:SORT
+
+IMPORT	Seq[token]	ONLY seq:SORT
+
+
+TYPE parseResult == 
+	success(absy: absy)
+	failure(reasons: diag)
+
+FUN parse : options ** seq[token] -> parseResult
+

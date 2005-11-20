@@ -1,0 +1,12 @@
+/* % 
+Der mOPAL Compilertreiber.
+*/
+
+SIGNATURE MOC
+
+IMPORT	Com	COMPLETELY
+	Void	COMPLETELY
+
+
+FUN moc : com[void]
+

@@ -1,0 +1,22 @@
+IMPLEMENTATION Options
+
+IMPORT	Denotation	COMPLETELY
+
+DATA options == 
+    options(debug: bool,        -- ob Debuginformationen ausgegeben werden
+                                -- sollen
+	    interp: bool,       -- ob nach der Kompilation der Interpreter
+	                        -- aufgerufen werden soll
+            dumpCode: bool,
+	    source: denotation  -- der Basisname des Quellfiles
+	                        -- (ohne Endung ".moc")
+    )
+	
+DEF `(options(Debug, Interp, Dump, Source)) ==
+    "options " ++ (IF Debug  THEN "-d " ELSE "" FI)
+               ++ (IF Interp THEN "-i " ELSE "" FI)
+               ++ (IF Dump   THEN "-S " ELSE "" FI)
+	       ++ Source
+
+
+

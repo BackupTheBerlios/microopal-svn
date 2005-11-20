@@ -1,0 +1,16 @@
+SYSKIND=top
+TOPSTRUCT=MOC
+TOPCOM=moc
+GENOPTIONS=-v0 
+OPAL_LIBS = $(OPAL_BASE)
+GENSUBSYS= $(GENSTDSYS)
+
+_all: scanner
+
+scanner: scanner.lex
+	./makescanner
+
+_clean: cleanscanner
+
+cleanscanner:
+	-rm -f scanner.c scanner
