@@ -1,5 +1,61 @@
+/*
+*	MicroOpal - compiler for a very simple opal slang written in opal
+*	Copyright (C) 2005 Jan Kechel, Marc Schachtel
+*
+*	This program is free software; you can redistribute it and/or
+*	modify it under the terms of the GNU General Public License
+*	as published by the Free Software Foundation; either version 2
+*	of the License, or (at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program; if not, write to the Free Software
+*	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*
+*
+*	tree of abstract syntax
+*/
 IMPLEMENTATION Absy
 
-DATA absy == NYI
+IMPORT	Denotation ONLY denotation:SORT
+        String ONLY string
 
+DATA absy == 	
+		-- Prog: ft = first DEF of type Def, rt = all other DEFs of type Prog
+		Prog(ft:absy, rt:absy) 
+
+		-- Def: funcdecl = left side of def of type FuncDecl, 
+		--      funcimpl = right side of def of type ExprTerm, ExprFunc or ExprCond
+		Def(funcdecl:absy, funcimpl:absy) 
+
+		-- FuncDecl: Function-Declaration name = identifier, type = return-type of function 
+		-- paramsdecl are parameters of this Function
+		FuncDecl(name:string, type:absy, paramsdecl:absy) 
+
+		-- ParamsDecl: Parameter-Declaration: ft = first parameter (of type lhs), rt = rest 
+		-- ft is of type FuncDecl, rt is of Type ParamsDecl
+		ParamsDecl(ft:absy, rt:absy)
+
+		-- Type: only nat or bool
+		Type(type:string)
+
+		-- ExprTerm: this expression is a leaf: number, true or false
+		ExprTerm(term:string)
+
+		-- ExprFunc: sth. like a function call:  name = name of function, params = parameters
+		ExprFunc(name:string, params:absy)
+
+		-- Params: ft = first parameter of type Expr*, rt = rest of type Params
+		Params(ft:absy, rt:absy)
+
+		-- ExprCond: IF if THEN then ELSE else FI, each of type Expr
+		ExprCond(if:absy, then:absy, else:absy)
+
+-- Definition how to print our absy to stdout
 DEF `(Absy) == "NYI"
+
+
