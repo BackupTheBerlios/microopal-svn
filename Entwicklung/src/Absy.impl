@@ -21,8 +21,9 @@
 */
 IMPLEMENTATION Absy
 
-IMPORT	Denotation ONLY denotation:SORT
-        String ONLY string
+IMPORT	Denotation COMPLETELY
+        String COMPLETELY
+	StringConv COMPLETELY
 
 DATA absy == 	
 		-- Prog: ft = first DEF of type Def, rt = all other DEFs of type Prog
@@ -55,7 +56,19 @@ DATA absy ==
 		-- ExprCond: IF if THEN then ELSE else FI, each of type Expr
 		ExprCond(if:absy, then:absy, else:absy)
 
+		-- Error: this part of the tree couldn't be parsed correctly, error-information
+		Error(error:string)
+
 -- Definition how to print our absy to stdout
-DEF `(Absy) == "NYI"
+DEF `(Prog(a,b)) == "Prog( " ++ `(a) ++ "\n" ++ `(b) ++ ")"
+DEF `(Def(a,b)) == "Def( " ++ `(a) ++ "," ++ `(b) ++ ")"
+DEF `(FuncDecl(a,b,c)) == "FuncDecl: " ++ `(a) ++ "( " ++ `(c) ++ ") returns (" ++ `(b) ++ ")" 
+DEF `(ParamsDecl(a,b)) == `(a) ++ ", " ++ `(b)
+DEF `(Type(a)) == "Type: " ++ `(a)
+DEF `(ExprTerm(a)) == "Term: " ++ `(a)
+DEF `(ExprFunc(a, b)) == "ExprFunc: " ++ `(a) ++ "( " ++ `(b) ++ ")"
+DEF `(Params(a, b)) == "Params: " ++ `(a) ++ ", " ++ `(b)
+DEF `(ExprCond(a, b, c)) == "IF\n{   " ++ `(a) ++ "\n}\nTHEN\n{   " ++ `(b) ++ "\n}\nELSE\n{   " ++ `(c) ++ "\n}\n"
+DEF `(Error(a)) == `(a)
 
 
