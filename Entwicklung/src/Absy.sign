@@ -29,4 +29,37 @@ SORT absy
 
 FUN ` : absy -> denotation
 
+TYPE absy == 	
+		-- Prog: ft = first DEF of type Def, rt = all other DEFs of type Prog
+		Prog(ft:absy, rt:absy) 
+
+		-- Def: funcdecl = left side of def of type FuncDecl, 
+		--      funcimpl = right side of def of type ExprTerm, ExprFunc or ExprCond
+		Def(funcdecl:absy, funcimpl:absy) 
+
+		-- FuncDecl: Function-Declaration name = identifier, type = return-type of function 
+		-- paramsdecl are parameters of this Function
+		FuncDecl(name:string, type:absy, paramsdecl:absy) 
+
+		-- ParamsDecl: Parameter-Declaration: ft = first parameter (of type lhs), rt = rest 
+		-- ft is of type FuncDecl, rt is of Type ParamsDecl
+		ParamsDecl(ft:absy, rt:absy)
+
+		-- Type: only nat or bool
+		Type(type:string)
+
+		-- ExprTerm: this expression is a leaf: number, true or false
+		ExprTerm(term:string)
+
+		-- ExprFunc: sth. like a function call:  name = name of function, params = parameters
+		ExprFunc(name:string, params:absy)
+
+		-- Params: ft = first parameter of type Expr*, rt = rest of type Params
+		Params(ft:absy, rt:absy)
+
+		-- ExprCond: IF if THEN then ELSE else FI, each of type Expr
+		ExprCond(if:absy, then:absy, else:absy)
+
+		-- Error: this part of the tree couldn't be parsed correctly, error-information
+		Error(error:string)
 

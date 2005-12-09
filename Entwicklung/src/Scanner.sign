@@ -20,4 +20,5 @@ TYPE scanResult ==
 
 FUN scan : options -> com[scanResult]
 
+FUN scantest : denotation -> seq[token]
 

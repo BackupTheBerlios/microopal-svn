@@ -1,5 +1,31 @@
-/* % 
-Der Parser. NOT YET IMPLEMENTED.
+/*
+*	MicroOpal - compiler for a very simple opal slang written in opal
+*	Copyright (C) 2005 Jan Kechel, Marc Schachtel
+*
+*	This program is free software; you can redistribute it and/or
+*	modify it under the terms of the GNU General Public License
+*	as published by the Free Software Foundation; either version 2
+*	of the License, or (at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program; if not, write to the Free Software
+*	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*
+*
+*	the parser
+*
+*	to test this parser with oasys try:
+*
+*	#oasys
+*	>f Parser.impl
+*	Parser.impl>e parsetest("fac")
+*
+*	Where fac ist the basename of a sourcefile ending with .mo (in this example: fac.mo)
 */
 
 SIGNATURE Parser
@@ -17,4 +43,8 @@ TYPE parseResult ==
 	failure(reasons: diag)
 
 FUN parse : options ** seq[token] -> parseResult
+
+FUN parsetest : denotation -> parseResult
+
+FUN ` : parseResult -> denotation
 

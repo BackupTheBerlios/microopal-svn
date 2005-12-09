@@ -44,6 +44,14 @@ DEF scanCommand == "./scanner"  -- das muß in der Realität natürlich
                                 -- so definiert sein, daß das 
 				-- Hilfsprogramm immer gefunden wird
 
+DEF scantest(filename) ==
+	LET 
+		ScanResult == EXEC(scan(options(false,true,false,filename)))
+	IN
+		IF success?(ScanResult) THEN
+			tokens(ScanResult)
+		ELSE <> 
+		FI
 
 DEF scan(Opts) ==
     LET FileName == source(Opts) ++ ".mo"

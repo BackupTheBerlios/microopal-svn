@@ -24,7 +24,6 @@ IMPLEMENTATION Absy
 IMPORT	Denotation COMPLETELY
         String COMPLETELY
 	StringConv COMPLETELY
-
 DATA absy == 	
 		-- Prog: ft = first DEF of type Def, rt = all other DEFs of type Prog
 		Prog(ft:absy, rt:absy) 
@@ -58,6 +57,7 @@ DATA absy ==
 
 		-- Error: this part of the tree couldn't be parsed correctly, error-information
 		Error(error:string)
+
 
 -- Definition how to print our absy to stdout
 DEF `(Prog(a,b)) == "Prog( " ++ `(a) ++ "\n" ++ `(b) ++ ")"
