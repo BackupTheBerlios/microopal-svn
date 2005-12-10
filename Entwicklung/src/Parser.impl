@@ -41,6 +41,7 @@ IMPORT	Diag		COMPLETELY
 	SeqIndex COMPLETELY
 	Nat COMPLETELY
 	String COMPLETELY
+	Token COMPLETELY
 
 
 DATA parseResult == 
@@ -55,23 +56,37 @@ DEF parse(Opts, Toks) ==
 
 FUN parseProg : seq[token] -> absy ** seq[token]
 DEF parseProg(Toks) ==
-	LET
-		(a, rest) == parseProg(Toks)
-	IN
-		IF <>?(rest) THEN
-			(Prog(a, Error("ende"!)), <>)
-		ELSE
+	IF <>?(Toks) THEN
+		(Error("parseProg: no more tokens"!), <>)
+	ELSE
+		IF kDEF?(ft(Toks)) THEN
 			LET
-				m == rt(rest)
-				(b, restb) == parseProg(m)
+				(a, rest) == parseDef(rt(Toks))
+				(p, prest) == parseProg(rest)
 			IN
-				(Prog(a, b), restb)
+				(Prog(a, p), prest)
+		ELSE
+			(Error("parseProg: DEF expected"!), <>)
 		FI
+	FI
 
---    failure(error(global, "the parser is not yet implemented!"))
+FUN parseDef : seq[token] -> absy ** seq[token]
+DEF parseDef(Toks) ==
+	IF <>?(Toks) THEN
+		(Def(Error("FuncDecl no more tokens"!), Error("FuncImpl no more tokens"!)), <>)
+	ELSE
+		IF kDEF?(ft(Toks)) THEN
+			(Def(Error("FuncDecl nyi"!), Error("FuncImpl nyi"!)), Toks)
+		ELSE
+			parseDef(rt(Toks))
+		FI
+	FI
 
+-- just to test the parser from oasys
 DEF parsetest(s) ==
 	parse(options(false, false, false, s), scantest(s))
 
+-- This is to print the parser-results
 DEF `(failure(r)) == `(r)
+DEF `(success(r)) == `(r)
 
