@@ -63,3 +63,4 @@ TYPE absy ==
 		-- Error: this part of the tree couldn't be parsed correctly, error-information
 		Error(error:string)
 
+		Empty(e:string)

@@ -54,33 +54,61 @@ DEF parse(Opts, Toks) ==
 	IN
 		success(a)
 
+-- parseProg: Erstellt fuer jedes DEF einen neuen Prog-Knoten im Absy und 
+--            laesst Def-Knoten von parseDef erstellen
+--
+--      Prog
+--     /    \
+--   Def   Prog
+--
 FUN parseProg : seq[token] -> absy ** seq[token]
 DEF parseProg(Toks) ==
 	IF <>?(Toks) THEN
-		(Error("parseProg: no more tokens"!), <>)
+		(Error("parseProg: EOF"!), <>)
 	ELSE
 		IF kDEF?(ft(Toks)) THEN
 			LET
 				(a, rest) == parseDef(rt(Toks))
 				(p, prest) == parseProg(rest)
 			IN
-				(Prog(a, p), prest)
+				IF <>?(rest) THEN
+					(Prog(p, Empty(""!)), <>) -- letztes DEF
+				ELSE
+					(Prog(a, p), prest) -- noch einen Prog-Knoten bitte
+				FI
 		ELSE
-			(Error("parseProg: DEF expected"!), <>)
+			parseProg(rt(Toks)) -- skip until next DEF
 		FI
 	FI
 
+-- parseDef: Erstellt einen neuen Def-Knoten mit FuncDecl und Expr
+--
+--         DEF
+--        /   \
+-- FuncDecl   ExprXXX
+--
 FUN parseDef : seq[token] -> absy ** seq[token]
 DEF parseDef(Toks) ==
 	IF <>?(Toks) THEN
-		(Def(Error("FuncDecl no more tokens"!), Error("FuncImpl no more tokens"!)), <>)
+		(Error("parseDEF no more tokens"!), <>)
 	ELSE
-		IF kDEF?(ft(Toks)) THEN
-			(Def(Error("FuncDecl nyi"!), Error("FuncImpl nyi"!)), Toks)
-		ELSE
-			parseDef(rt(Toks))
-		FI
+		LET
+			(funcdecl, rest) == parseFuncDecl(Toks)
+			(funcimpl, brest) == parseFuncImpl(rest)
+		IN
+		(Def(funcdecl, funcimpl), brest)
 	FI
+
+-- parseFuncDecl: Erstellt einen neuen FuncDecl-Knoten
+--
+FUN parseFuncDecl : seq[token] -> absy ** seq[token]
+DEF parseFuncDecl(Toks) ==
+	(FuncDecl("nyi"!, Error("nyi"!), Error("nyi"!)), Toks)
+
+-- parseFuncImpl: Erstellt einen neuen Expr-Knoten
+FUN parseFuncImpl : seq[token] -> absy ** seq[token]
+DEF parseFuncImpl(Toks) ==
+	(Error("nyi"!), Toks)
 
 -- just to test the parser from oasys
 DEF parsetest(s) ==
