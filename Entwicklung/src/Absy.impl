@@ -23,7 +23,8 @@ IMPLEMENTATION Absy
 
 IMPORT	Denotation COMPLETELY
         String COMPLETELY
-	StringConv COMPLETELY
+		StringConv COMPLETELY
+
 DATA absy == 	
 		-- Prog: ft = first DEF of type Def, rt = all other DEFs of type Prog (or, if last, also DEF)
 		Prog(ft:absy, rt:absy) 

@@ -22,7 +22,7 @@ SIGNATURE Absy
 
 
 IMPORT	Denotation ONLY denotation:SORT
-        String ONLY string
+		String COMPLETELY
 
 
 SORT absy 	

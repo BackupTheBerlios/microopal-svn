@@ -31,8 +31,8 @@
 
 IMPLEMENTATION Parser
 
-IMPORT	Diag		COMPLETELY
-	Pos		COMPLETELY
+IMPORT	Diag COMPLETELY
+	Pos COMPLETELY
 	Scanner ONLY scantest
 	Options COMPLETELY
 	Absy COMPLETELY
@@ -42,7 +42,6 @@ IMPORT	Diag		COMPLETELY
 	Nat COMPLETELY
 	String COMPLETELY
 	Token COMPLETELY
-
 
 DATA parseResult == 
 	success(absy: absy)
@@ -54,7 +53,7 @@ DEF parse(Opts, Toks) ==
 	IN
 		success(a)
 
--- parseProg: Erstellt fuer jedes DEF einen neuen Prog-Knoten im Absy und 
+-- parseProg: Erstellt einen neuen Prog-Knoten im Absy und 
 --            laesst Def-Knoten von parseDef erstellen
 --
 --      Prog
@@ -66,22 +65,22 @@ DEF parseProg(Toks) ==
 	IF <>?(Toks) THEN
 		(Error("parseProg: EOF"!), <>)
 	ELSE
-		IF kDEF?(ft(Toks)) THEN
-			LET
-				(a, rest) == parseDef(rt(Toks))
-				(p, prest) == parseProg(rest)
-			IN
-				IF <>?(rest) THEN
-					(Prog(p, Empty(""!)), <>) -- letztes DEF
-				ELSE
-					(Prog(a, p), prest) -- noch einen Prog-Knoten bitte
-				FI
-		ELSE
-			parseProg(rt(Toks)) -- skip until next DEF
+		LET
+			(a, rest) == parseDef(Toks)
+		IN
+			IF <>?(rest) or kEOF?(ft(rest)) THEN
+				(Prog(a, Empty(""!)), <>) -- letztes DEF
+			ELSE
+				LET
+					(b, prest) == parseProg(rest)
+				IN
+					(Prog(a, b), prest) -- noch einen Prog-Knoten bitte
 		FI
 	FI
 
 -- parseDef: Erstellt einen neuen Def-Knoten mit FuncDecl und Expr
+--
+-- Direktormenge: DEF
 --
 --         DEF
 --        /   \
@@ -89,26 +88,98 @@ DEF parseProg(Toks) ==
 --
 FUN parseDef : seq[token] -> absy ** seq[token]
 DEF parseDef(Toks) ==
-	IF <>?(Toks) THEN
-		(Error("parseDEF no more tokens"!), <>)
+	IF <>?(Toks) or kEOF?(ft(Toks)) THEN
+		(Error("parseDef: unexpected EOF"!), Toks)
 	ELSE
-		LET
-			(funcdecl, rest) == parseFuncDecl(Toks)
-			(funcimpl, brest) == parseFuncImpl(rest)
-		IN
-		(Def(funcdecl, funcimpl), brest)
+		IF kDEF?(ft(Toks)) THEN -- Directormenge DEF
+			LET
+				(funcdecl, rest) == parseFuncDecl(rt(Toks))
+				(funcimpl, brest) == parseFuncImpl(rest)
+			IN
+				(Def(funcdecl, funcimpl), brest)
+		ELSE
+			(Error(("parseDef: 'DEF' expected"!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+		FI
 	FI
 
 -- parseFuncDecl: Erstellt einen neuen FuncDecl-Knoten
 --
+-- Directormenge: ide
+--
 FUN parseFuncDecl : seq[token] -> absy ** seq[token]
 DEF parseFuncDecl(Toks) ==
-	(FuncDecl("nyi"!, Error("nyi"!), Error("nyi"!)), Toks)
+	IF id?(ft(Toks)) or kMAIN?(ft(Toks)) THEN
+		IF id?(ft(Toks)) THEN	
+			LET
+				(absy_args, rest) == parseParamsDecl(rt(Toks))
+			IN
+				IF kCOLON?(ft(rest)) THEN
+					LET
+						(absy_type, brest) == parseType(rt(rest))
+					IN
+							(FuncDecl(value(ft(Toks))!, absy_type, absy_args), brest)
+				ELSE
+					(Error(("parseFuncDecl: ':' expected"!) ++ insteadOf(ft(rest))), rest)
+				FI
+		ELSE -- MAIN
+			IF kCOLON?(ft(rt(Toks))) THEN -- eigentlich genau das gleiche wie 5 zeilen hoeher .. 
+			                              -- -> sollte in eine eigene funktion
+				LET
+					(absy_type, rest) == parseType(rt(rt(Toks)))
+				IN
+					(FuncDecl("MAIN"!, absy_type, Empty(""!)), rest)
+			ELSE
+				(Error(("parseFuncDecl: ':' expected"!) ++ insteadOf(ft(rt(Toks)))), rt(Toks))
+			FI
+		FI
+	ELSE
+		(Error(("parseFuncDecl: identifier or MAIN expected"!) ++ insteadOf(ft(Toks))), rt(skipTo(kDEFAS?,Toks)))
+	FI
 
 -- parseFuncImpl: Erstellt einen neuen Expr-Knoten
 FUN parseFuncImpl : seq[token] -> absy ** seq[token]
 DEF parseFuncImpl(Toks) ==
-	(Error("nyi"!), Toks)
+	(Error("parseFuncImpl: nyi"!), skipTo(kDEF?, Toks))
+
+-- parseParamsDecl
+FUN parseParamsDecl : seq[token] -> absy ** seq[token]
+DEF parseParamsDecl(Toks) ==
+	IF kOPEN?(ft(Toks)) THEN
+		(Error("parseParamsDecl: nyi"!), rt(skipTo(kCLOSE?, Toks))) -- rt to skip ')' too
+	ELSE
+		(Error(("parseParamsDecl: '(' expected"!) ++ insteadOf(ft(Toks))), Toks)
+	FI
+
+-- skip until token, expects function token? as first argument
+-- return: sequence of tokens, where the first token is the expected one or empty sequence
+FUN skipTo : (token -> bool) ** seq[token] -> seq[token]
+DEF skipTo(EqualsTokFunc, Toks) ==
+	IF <>?(Toks) THEN
+		Toks
+	ELSE
+		IF EqualsTokFunc(ft(Toks)) or kEOF?(ft(Toks)) THEN
+			Toks
+		ELSE
+			skipTo(EqualsTokFunc, rt(Toks))
+		FI
+	FI
+
+-- parseType
+FUN parseType : seq[token] -> absy ** seq[token]
+DEF parseType(Toks) ==
+	IF knat?(ft(Toks)) or kbool?(ft(Toks)) THEN
+		IF knat?(ft(Toks)) THEN
+			(Type("nat"!), rt(Toks))
+		ELSE
+			(Type("bool"!), rt(Toks))
+		FI
+	ELSE
+		(Error(("parseType: 'nat' or 'bool' expected"!) ++ insteadOf(ft(Toks))), Toks)
+	FI
+-- insteadOf
+FUN insteadOf : token -> string
+DEF insteadOf(Tok) ==
+	((" instead of ")!) ++ ((`(Tok))!)
 
 -- just to test the parser from oasys
 DEF parsetest(s) ==
