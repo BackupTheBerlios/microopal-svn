@@ -48,6 +48,9 @@ TYPE absy ==
 		-- Type: only nat or bool
 		Type(type:string)
 
+		-- SingleArg: Has Name And Type
+		SingleArg(name:string, type:absy)
+
 		-- ExprTerm: this expression is a leaf: number, true or false
 		ExprTerm(term:string)
 

@@ -138,17 +138,70 @@ DEF parseFuncDecl(Toks) ==
 
 -- parseFuncImpl: Erstellt einen neuen Expr-Knoten
 FUN parseFuncImpl : seq[token] -> absy ** seq[token]
-DEF parseFuncImpl(Toks) ==
+DEF parseFuncImpl(Toks) == 
 	(Error("parseFuncImpl: nyi"!), skipTo(kDEF?, Toks))
 
 -- parseParamsDecl
 FUN parseParamsDecl : seq[token] -> absy ** seq[token]
 DEF parseParamsDecl(Toks) ==
 	IF kOPEN?(ft(Toks)) THEN
-		(Error("parseParamsDecl: nyi"!), rt(skipTo(kCLOSE?, Toks))) -- rt to skip ')' too
+		IF id?(ft(rt(Toks))) THEN
+			LET
+				(absy_single, rest) == parseSingleArg(rt(Toks))
+			IN
+				IF kCOMMA?(ft(rest)) THEN
+					LET
+						(absy_list, lrest) == parseArgList(absy_single,rt(Toks))
+					IN
+						(absy_list,rt(skipTo(kCLOSE?, Toks)))
+				ELSE
+					(absy_single, rt(skipTo(kCLOSE?, Toks)))
+				FI
+		ELSE
+			IF kCLOSE?(ft(rt(Toks))) THEN
+				(Empty(""!), rt(skipTo(kCLOSE?, Toks)))
+			ELSE
+				(Error("parseParamsDecl: ')' or identifier expected"!), rt(skipTo(kCLOSE?, Toks)))
+			FI
+		FI
 	ELSE
 		(Error(("parseParamsDecl: '(' expected"!) ++ insteadOf(ft(Toks))), Toks)
 	FI
+
+-- parseSingleArg
+FUN parseSingleArg : seq[token] -> absy ** seq[token]
+DEF parseSingleArg(Toks) ==
+	IF kCOLON?(ft(rt(Toks))) THEN
+		LET 
+			(absy_type, trest) == parseType(rt(rt(Toks)))
+		IN
+			(SingleArg(value(ft(Toks))!, absy_type), trest)
+	ELSE
+		(Error("parseSingleArg: ':' or expected"!), skipTo(kCLOSE?, Toks))
+	FI
+
+-- parseArgList
+FUN parseArgList : absy ** seq[token] -> absy ** seq[token]
+DEF parseArgList(argabsy,Toks) ==
+	-- IF kCOLON?(ft(Toks)) THEN
+	 	-- (argabsy, Toks)
+	-- ELSE
+		IF id?(ft(Toks)) THEN
+			LET
+				(absy_single, rest) == parseSingleArg(Toks)
+			IN
+				IF kCOLON?(ft(rt(rest))) THEN
+					(absy_single, rt(skipTo(kCLOSE?, Toks)))
+				ELSE
+					LET 
+						(absy_next, nexrest) == parseArgList(absy_single,rt(rest))
+					IN
+						(ParamsDecl(absy_single, absy_next), rt(skipTo(kCLOSE?, Toks)))
+				FI
+		ELSE
+			(Error(("parseArgList: identifier expected"!) ++ insteadOf(ft(Toks))), Toks)
+		FI
+	-- FI
 
 -- skip until token, expects function token? as first argument
 -- return: sequence of tokens, where the first token is the expected one or empty sequence
@@ -184,7 +237,6 @@ DEF insteadOf(Tok) ==
 -- just to test the parser from oasys
 DEF parsetest(s) ==
 	parse(options(false, false, false, s), scantest(s))
-
 -- This is to print the parser-results
 DEF `(failure(r)) == `(r)
 DEF `(success(r)) == `(r)
