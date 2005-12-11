@@ -57,6 +57,9 @@ TYPE absy ==
 		-- ExprFunc: sth. like a function call:  name = name of function, params = parameters
 		ExprFunc(name:string, params:absy)
 
+		-- eine variable
+		ExprId(name:string)
+
 		-- Params: ft = first parameter of type Expr*, rt = rest of type Params
 		Params(ft:absy, rt:absy)
 

@@ -59,6 +59,9 @@ DATA absy ==
 		-- ExprCond: IF if THEN then ELSE else FI, each of type Expr
 		ExprCond(if:absy, then:absy, else:absy)
 
+		-- eine variable
+		ExprId(name:string)
+
 		-- Error: this part of the tree couldn't be parsed correctly, error-information
 		Error(error:string)
 
@@ -77,6 +80,7 @@ DEF `(ExprTerm(a)) == "Term: " ++ `(a)
 DEF `(ExprFunc(a, b)) == "ExprFunc: " ++ `(a) ++ "( " ++ `(b) ++ ")"
 DEF `(Params(a, b)) == "Params: " ++ `(a) ++ ", " ++ `(b)
 DEF `(ExprCond(a, b, c)) == "IF\n{   " ++ `(a) ++ "\n}\nTHEN\n{   " ++ `(b) ++ "\n}\nELSE\n{   " ++ `(c) ++ "\n}\n"
+DEF `(ExprId(a)) == "id(" ++ `(a) ++ ")"
 DEF `(Error(a)) == `(a)
 DEF `(Empty(e)) == ""
 
