@@ -39,17 +39,17 @@ TYPE absy ==
 
 		-- FuncDecl: Function-Declaration name = identifier, type = return-type of function 
 		-- paramsdecl are parameters of this Function
-		FuncDecl(name:string, type:absy, paramsdecl:absy) 
+		FuncDecl(name:string, tp:absy, paramsdecl:absy) 
 
 		-- ParamsDecl: Parameter-Declaration: ft = first parameter (of type lhs), rt = rest 
 		-- ft is of type FuncDecl, rt is of Type ParamsDecl
 		ParamsDecl(ft:absy, rt:absy)
 
 		-- Type: only nat or bool
-		Type(type:string)
+		Type(tp:string)
 
 		-- SingleArg: Has Name And Type
-		SingleArg(name:string, type:absy)
+		SingleArg(name:string, tp:absy)
 
 		-- ExprTerm: this expression is a leaf: number, true or false
 		ExprTerm(term:string)

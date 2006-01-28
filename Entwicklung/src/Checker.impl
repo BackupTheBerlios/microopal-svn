@@ -53,56 +53,181 @@ DATA checkResult ==
 	failure(reasons: diag)
 
 DATA type   == sort func unknown
-DATA result == result(type: type, diag: diag)
-DATA info   == info(args: seq[type], res: type)
-DATA datatype == number boolean
+DATA datatype == number boolean unknown
 
+FUN ` : datatype -> denotation
+DEF `(number) == "number"!
+DEF `(boolean) == "boolean"!
+DEF `(unknown) == "unknown"!
 
 -- the Environment will be a sequence of env's, carrying identifier, type (func or sort) and return-type
 DATA env ==
-	env(name:string, type:type, returns:datatype) 
+	env(name:string, type:type, returns:datatype, pars:seq[datatype]) 
 
--- adds a sort to the environment
-FUN addSortToEnv : string ** datatype ** seq[env] -> seq[env]
-DEF addSortToEnv(id, datatype, e) == 
-	::(env(id, sort, datatype), e)
+-- the 'main' function of this module (exported in .sign)
+DEF check(o, a) ==
+	LET
+		(cr, dtt) == chk(a, getBaseEnv)
+	IN
+		cr
 
--- adds a function to the environment
-FUN addFuncToEnv : string ** datatype ** seq[env] -> seq[env]
-DEF addFuncToEnv(id, returndatatype, e) == 
-	::(env(id, func, returndatatype), e)
+FUN eq : datatype ** datatype -> bool
+DEF eq(number, number) == true
+DEF eq(boolean, number) == false
+DEF eq(number, boolean) == false
+DEF eq(boolean, boolean) == true
+DEF eq(_,_) == false
 
--- returns true if the id is in this environment
-FUN isIdInEnvironment : string ** seq[env] -> bool
-DEF isIdInEnvironment(id, e) ==
-	IF <>?(e) THEN
-		false
-	ELSE
-		IF name(ft(e)) = id THEN
-			true
+FUN chk : absy ** seq[env] -> checkResult ** datatype
+
+-- Prog Knoten checken
+DEF chk(Prog(ftt,rtt), e) ==
+	LET
+		(cR1, dtt1) == chk(ftt, e)
+		(cR2, dtt2) == chk(rtt, e)
+	IN
+		IF success?(cR1) THEN
+			IF success?(cR2) THEN
+				(success, dtt1)
+			ELSE
+				(cR2, dtt2)
+			FI
 		ELSE
-			isIdInEnvironment(id , rt(e))
+			(cR1, dtt1)
+		FI
+
+-- Def Knoten checken
+DEF chk(Def(fd, fi), e) ==
+	LET
+		(cR1, dtt1) == chk(fd, e)
+		(cR2, dtt2) == chk(fi, e)
+	IN
+		IF success?(cR1) THEN
+			IF success?(cR2) THEN
+				IF eq(dtt1, dtt2) THEN
+					(success, dtt1)
+				ELSE
+					(failure(error(global, "Def declaration and implementation return different datatypes. DEF declared " ++ `(dtt1) ++ " but implementation returns a " ++ `(dtt2))), unknown)
+				FI
+			ELSE
+				(cR2, dtt2)
+			FI
+		ELSE
+				(cR1, dtt1)
+		FI
+
+-- FuncDecl Knoten checken, Environment durch Parameter erweitern
+DEF chk(FuncDecl(n, t, p), e) ==
+	LET 
+		(b, en) == isIdInEnvironment(n, e)
+	IN
+	IF b THEN
+		(failure(error(global, "name already exists")), boolean)
+	ELSE
+		LET
+			(cR1, dtt1) == chk(t, e)
+			(cR2, dtt2) == chk(p, e)
+		IN
+			IF success?(cR1) THEN
+				IF success?(cR2) THEN
+					(success, dtt1)
+				ELSE
+					(cR2, dtt2)
+				FI
+			ELSE
+				(cR1, dtt1)
+			FI
+	FI
+
+DEF chk(Type(n), e) ==
+	IF n = ("nat"!) THEN
+		(success, number)
+	ELSE
+		IF n = ("bool"!) THEN
+			(success, boolean)
+		ELSE
+			(failure(error(global, "'nat' or 'bool' expected")), boolean)
 		FI
 	FI
-	
+
+DEF chk(SingleArg(n, t), e) ==
+	LET 
+		(cR1, dtt1) == chk(t, e)
+	IN
+		(cR1, dtt1)
+
+
+
+DEF chk(ParamsDecl(p1, p2), e) ==
+	(success, boolean)
+--				(failure(error(global, "error in paramsdecl")), boolean)
+
+DEF chk(ExprTerm(t), e) ==
+	IF t = ("true"!) THEN
+		(success, boolean)
+	ELSE
+		IF t = ("false"!) THEN
+			(success, boolean)
+		ELSE
+			(success, number)
+		FI
+	FI
 		
+--				(failure(error(global, "error in exprterm")), boolean)
 
--- getBaseEnv creates the basic Environment for MicroOpal-Programs (e.g. adding reserved functions)
-FUN getBaseEnv : seq[env]
-DEF getBaseEnv == 
-	::(env("add"!, func, number), 
-	::(env("mul"!, func, number), 
-	::(env("sub"!, func, number), 
-	::(env("div"!, func, number), 
-	::(env("eq"!, func, boolean), 
-	::(env("lt"!, func, boolean), 
-	::(env("and"!, func, boolean), 
-	::(env("or"!, func, boolean), 
-	::(env("not"!, func, boolean), 
-	   <>)))))))))
+DEF chk(ExprFunc(n, p), e) ==
+	LET
+		(b, en) == isIdInEnvironment(n, e)
+	IN
+		IF b THEN
+			IF func?(type(en)) THEN
+	--	env(name:string, type:type, returns:datatype) 
+				LET 
+					(cr1, dtt1) == chk(p, ::(en, e))
+				IN
+					(cr1, returns(en)) -- add current function as first element in environment, return-type as in ienvironment
+			ELSE
+				(failure(error(global, "Identifier is not a function")), unknown)
+			FI
+		ELSE
+				(failure(error(global, "Identifier not found")), unknown)
+		FI
 
-DEF check(Opts, Absy) ==
-    failure(error(global, "the context checker is not yet implemented!"))
+-- expects env of current function as 1st element in seq[env]
+DEF chk(Params(f, r), e) ==
+		IF <>?(pars(ft(e))) THEN
+			(failure(error(global, "Too many arguments, function needs less parameters")), unknown)
+		ELSE
+			LET
+				(cr1, dtt1) == chk(f, rt(e)) -- check current param 
+			IN
+				IF success?(cr1) THEN
+					IF eq(dtt1, ft(pars(ft(e)))) THEN -- wenn verlangter parameter = uebergebener parameter
+							-- ok, also erster parameter gecheckt, 
+							-- diesen nun entfernen und nochmal mit einem parameter weniger fuer den rest
+						LET
+							en == env(name(ft(e)), type(ft(e)), returns(ft(e)), rt(pars(ft(e))))
+						IN
+							chk(r, ::(en, rt(e))) -- also success, ersetzen und den rest checken
+					ELSE
+						(failure(error(global, "Parameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) )), boolean)
+					FI
+				ELSE
+					(cr1, dtt1)
+				FI
+		FI
+DEF chk(ExprCond(if, then, else), e) ==
+	(success, boolean)
+
+DEF chk(ExprId(n), e) ==
+	(success, number)
+
+DEF chk(Error(s), e) ==
+	(failure(error(global, `(s))), boolean)
+
+-- also wenn keine weiteren parameter angegeben
+DEF chk(Empty(s), e) ==
+		(success, unknown)
 
 -- just to test the checker from oasys
 DEF checktest(s) ==
@@ -115,12 +240,58 @@ DEF checktest(s) ==
 				failure(error(global, "parser error"))
 			FI
 
+
+DEF chk(_, _) == 
+			(failure(error(global, "broken absy, correct parser!")), boolean)
+
 DEF `(success) == "checkResult success"
 DEF `(failure(a)) == "checkResult failure: '" ++ `(a) ++ "'"
 
+
+
+-- adds a sort to the environment
+-- env(name:string, type:type, returns:datatype, pars:seq[datatype]) 
+FUN addSortToEnv : string ** datatype ** seq[env] -> seq[env]
+DEF addSortToEnv(id, datatype, e) == 
+	::(env(id, sort, datatype, <>), e)
+
+-- adds a function to the environment
+FUN addFuncToEnv : string ** datatype ** seq[datatype] ** seq[env] -> seq[env]
+DEF addFuncToEnv(id, returndatatype, dtt, e) == 
+	::(env(id, func, returndatatype, dtt), e)
+
+-- returns true if the id is in this environment
+FUN isIdInEnvironment : string ** seq[env] -> bool ** env
+DEF isIdInEnvironment(id, e) ==
+	IF <>?(e) THEN
+		(false, env("error"!, func, boolean, <>))
+	ELSE
+		IF name(ft(e)) = id THEN
+			(true, ft(e)) 
+		ELSE
+			isIdInEnvironment(id , rt(e))
+		FI
+	FI
+	
+		
+-- getBaseEnv creates the basic Environment for MicroOpal-Programs (e.g. adding reserved functions)
+FUN getBaseEnv : seq[env]
+DEF getBaseEnv == 
+	::(env("add"!, func, number, ::(number, ::(number, <>))), 
+	::(env("mul"!, func, number, ::(number, ::(number, <>))), 
+	::(env("sub"!, func, number, ::(number, ::(number, <>))), 
+	::(env("div"!, func, number, ::(number, ::(number, <>))), 
+	::(env("eq"!, func, boolean, ::(number, ::(number, <>))), 
+	::(env("lt"!, func, boolean, ::(number, ::(number, <>))), 
+	::(env("and"!, func, boolean, ::(boolean, ::(boolean, <>))), 
+	::(env("or"!, func, boolean, ::(boolean, ::(boolean, <>))), 
+	::(env("not"!, func, boolean, ::(boolean, <>)), 
+	   <>)))))))))
+
+
 -- Function-Names with types
 FUN check_func_nat_nat_nat    : string ** seq[string] -> checkResult -- add, mul, sub, div
-DEF check_func_nat_nat_nat(name, params) ==
+DEF check_func_nat_nat_nat(name, pars) ==
 	IF (name = ("add"!)) or (name = ("mul"!)) or (name = ("sub"!)) or (name = ("div"!)) THEN
 		success
 	ELSE
