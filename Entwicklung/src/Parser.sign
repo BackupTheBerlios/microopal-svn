@@ -48,3 +48,5 @@ FUN parsetest : denotation -> parseResult
 
 FUN ` : parseResult -> denotation
 
+FUN printToks : seq[token] -> denotation
+

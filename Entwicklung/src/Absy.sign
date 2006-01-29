@@ -23,6 +23,8 @@ SIGNATURE Absy
 
 IMPORT	Denotation ONLY denotation:SORT
 		String COMPLETELY
+		Token COMPLETELY
+		Seq COMPLETELY
 
 
 SORT absy 	
@@ -35,38 +37,38 @@ TYPE absy ==
 
 		-- Def: funcdecl = left side of def of type FuncDecl, 
 		--      funcimpl = right side of def of type ExprTerm, ExprFunc or ExprCond
-		Def(funcdecl:absy, funcimpl:absy) 
+		Def(funcdecl:absy, funcimpl:absy, toks:seq[token]) 
 
 		-- FuncDecl: Function-Declaration name = identifier, type = return-type of function 
 		-- paramsdecl are parameters of this Function
-		FuncDecl(name:string, tp:absy, paramsdecl:absy) 
+		FuncDecl(name:string, tp:absy, paramsdecl:absy, toks:seq[token]) 
 
 		-- ParamsDecl: Parameter-Declaration: ft = first parameter (of type lhs), rt = rest 
 		-- ft is of type FuncDecl, rt is of Type ParamsDecl
-		ParamsDecl(ft:absy, rt:absy)
+		ParamsDecl(ft:absy, rt:absy, toks:seq[token])
 
 		-- Type: only nat or bool
-		Type(tp:string)
+		Type(tp:string, toks:seq[token])
 
 		-- SingleArg: Has Name And Type
-		SingleArg(name:string, tp:absy)
+		SingleArg(name:string, tp:absy, toks:seq[token])
 
 		-- ExprTerm: this expression is a leaf: number, true or false
-		ExprTerm(term:string)
+		ExprTerm(term:string, toks:seq[token])
 
 		-- ExprFunc: sth. like a function call:  name = name of function, params = parameters
-		ExprFunc(name:string, params:absy)
+		ExprFunc(name:string, params:absy, toks:seq[token])
 
 		-- eine variable
-		ExprId(name:string)
+		ExprId(name:string, toks:seq[token])
 
 		-- Params: ft = first parameter of type Expr*, rt = rest of type Params
-		Params(ft:absy, rt:absy)
+		Params(ft:absy, rt:absy, toks:seq[token])
 
 		-- ExprCond: IF if THEN then ELSE else FI, each of type Expr
-		ExprCond(if:absy, then:absy, else:absy)
+		ExprCond(if:absy, then:absy, else:absy, toks:seq[token])
 
 		-- Error: this part of the tree couldn't be parsed correctly, error-information
-		Error(error:string)
+		Error(error:string, toks:seq[token])
 
 		Empty(e:string)

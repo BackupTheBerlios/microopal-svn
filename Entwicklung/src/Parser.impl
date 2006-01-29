@@ -64,7 +64,7 @@ DEF parse(Opts, Toks) ==
 FUN parseProg : seq[token] -> absy ** seq[token]
 DEF parseProg(Toks) ==
 	IF <>?(Toks) THEN
-		(Error("parseProg: EOF"!), <>)
+		(Error("parseProg: EOF"!, <>), <>)
 	ELSE
 		LET
 			(a, rest) == parseDef(Toks)
@@ -90,16 +90,16 @@ DEF parseProg(Toks) ==
 FUN parseDef : seq[token] -> absy ** seq[token]
 DEF parseDef(Toks) ==
 	IF <>?(Toks) or kEOF?(ft(Toks)) THEN
-		(Error("parseDef: unexpected EOF"!), Toks)
+		(Error("parseDef: unexpected EOF"!, <>), Toks)
 	ELSE
 		IF kDEF?(ft(Toks)) THEN -- Directormenge DEF
 			LET
 				(funcdecl, rest) == parseFuncDecl(rt(Toks))
 				(funcimpl, brest) == parseFuncImpl(rest)
 			IN
-				(Def(funcdecl, funcimpl), brest)
+				(Def(funcdecl, funcimpl, ::(ft(Toks), <>)), brest)
 		ELSE
-			(Error(("parseDef: 'DEF' expected"!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+			(Error(("parseDef: 'DEF' expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kDEF?, Toks))
 		FI
 	FI
 
@@ -118,9 +118,9 @@ DEF parseFuncDecl(Toks) ==
 					LET
 						(absy_type, brest) == parseType(rt(rest))
 					IN
-							(FuncDecl(value(ft(Toks))!, absy_type, absy_args), brest)
+							(FuncDecl(value(ft(Toks))!, absy_type, absy_args, ::(ft(Toks), <>)), brest)
 				ELSE
-					(Error(("parseFuncDecl: ':' expected"!) ++ insteadOf(ft(rest))), rest)
+					(Error(("parseFuncDecl: ':' expected"!) ++ insteadOf(ft(rest)), ::(ft(rest), <>)), rest)
 				FI
 		ELSE -- MAIN
 			IF kCOLON?(ft(rt(Toks))) THEN -- eigentlich genau das gleiche wie 5 zeilen hoeher .. 
@@ -128,13 +128,13 @@ DEF parseFuncDecl(Toks) ==
 				LET
 					(absy_type, rest) == parseType(rt(rt(Toks)))
 				IN
-					(FuncDecl("MAIN"!, absy_type, Empty(""!)), rest)
+					(FuncDecl("MAIN"!, absy_type, Empty(""!), ::(ft(Toks), <>)), rest)
 			ELSE
-				(Error(("parseFuncDecl: ':' expected"!) ++ insteadOf(ft(rt(Toks)))), rt(Toks))
+				(Error(("parseFuncDecl: ':' expected"!) ++ insteadOf(ft(rt(Toks))), ::(ft(rt(Toks)), <>)), rt(Toks))
 			FI
 		FI
 	ELSE
-		(Error(("parseFuncDecl: identifier or MAIN expected"!) ++ insteadOf(ft(Toks))), rt(skipTo(kDEFAS?,Toks)))
+		(Error(("parseFuncDecl: identifier or MAIN expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), rt(skipTo(kDEFAS?,Toks)))
 	FI
 
 -- parseFuncImpl: parst '==' und ruft parseExpression auf
@@ -143,7 +143,7 @@ DEF parseFuncImpl(Toks) ==
 	IF kDEFAS?(ft(Toks)) THEN -- faengt immer mit '==' an
 		parseExpression(rt(Toks))
 			ELSE
-		(Error(("parseFuncImpl: '==' expected "!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+		(Error(("parseFuncImpl: '==' expected "!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kDEF?, Toks))
 	FI
 
 -- parseExpression: parst jede Expression
@@ -151,13 +151,13 @@ FUN parseExpression : seq[token] -> absy ** seq[token]
 DEF parseExpression(Toks) ==
 		IF kfalse?(ft(Toks)) or ktrue?(ft(Toks)) THEN -- erste moeglichkeit: true oder false
 			IF kfalse?(ft(Toks)) THEN
-				(ExprTerm("false"!), rt(Toks))
+				(ExprTerm("false"!, ::(ft(Toks), <>) ), rt(Toks))
 			ELSE
-				(ExprTerm("true"!), rt(Toks))
+				(ExprTerm("true"!,  ::(ft(Toks), <>) ), rt(Toks))
 			FI
 		ELSE
 			IF number?(ft(Toks)) THEN -- zweite moeglichkeit: zahl
-				(ExprTerm((`(value(ft(Toks))))!), rt(Toks))
+				(ExprTerm((`(value(ft(Toks))))!, ::(ft(Toks), <>)), rt(Toks))
 			ELSE
 				IF id?(ft(Toks)) THEN -- dritte moeglichkeit: funktions-aufruf
 					parseFuncCall(Toks)
@@ -166,7 +166,7 @@ DEF parseExpression(Toks) ==
 						parseConditional(Toks)
 					ELSE
 						-- keine der vier moeglichkeiten trifft zu ..
-						(Error(("parseExpression: 'true', 'false', number, function, or IF expected "!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+						(Error(("parseExpression: 'true', 'false', number, function, or IF expected "!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kDEF?, Toks))
 					FI
 				FI
 			FI
@@ -180,12 +180,12 @@ DEF parseFuncCall(Toks) ==
 			LET
 				(absy_args, rest) == parseIdArgs(rt(Toks)) -- id entfernen
 			IN
-				(ExprFunc((value(ft(Toks)))!, absy_args), rest) 
+				(ExprFunc((value(ft(Toks)))!, absy_args, ::(ft(Toks),<>)), rest) 
 		ELSE
-			(ExprId((value(ft(Toks)))!), rt(Toks))
+			(ExprId((value(ft(Toks)))!, ::(ft(Toks), <>)), rt(Toks))
 		FI
 	ELSE
-		(Error(("parseFuncCall: id expected"!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+		(Error(("parseFuncCall: id expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kDEF?, Toks))
 	FI
 
 -- parseIdArgs: parst Argumentliste fuer FunctionCall
@@ -197,12 +197,12 @@ DEF parseIdArgs(Toks) ==
 			(absy_exprlist, rest2) == parseExpressionList(rest) -- rest
 		IN
 			IF kCLOSE?(ft(rest2)) THEN
-				(Params(absy_expr, absy_exprlist), rt(rest2))
+				(Params(absy_expr, absy_exprlist, ::(ft(Toks), <>)), rt(rest2))
 			ELSE
-				(Error(("parseIdArgs: ')' expected"!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+				(Error(("parseIdArgs: ')' expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kDEF?, Toks))
 			FI
 	ELSE
-		(Error(("parseIdArgs: '(' expected"!) ++ insteadOf(ft(Toks))), skipTo(kCLOSE?, Toks))
+		(Error(("parseIdArgs: '(' expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kCLOSE?, Toks))
 	FI
 
 -- parseExpressionList: parst ', Expr [, Expr ]'
@@ -219,16 +219,16 @@ DEF parseExpressionList(Toks) ==
 					LET
 						(absy_params, rest2) == parseExpressionList(rest)
 					IN
-						(Params(absy_expr, absy_params), rest2)
+						(Params(absy_expr, absy_params, ::(ft(Toks), <>)), rest2)
 				ELSE
 					IF kCLOSE?(ft(rest)) THEN
-						(Params(absy_expr, Empty(""!)), rest)
+						(Params(absy_expr, Empty(""!), ::(ft(Toks), <>)), rest)
 					ELSE
-						(Error(("parseExpressionList: ')' expected"!) ++ insteadOf(ft(Toks))), skipTo(kCLOSE?, Toks))
+						(Error(("parseExpressionList: ')' expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kCLOSE?, Toks))
 					FI
 				FI
 		ELSE
-			(Error(("parseExpressionList: ',' expected"!) ++ insteadOf(ft(Toks))), skipTo(kCLOSE?, Toks))
+			(Error(("parseExpressionList: ',' expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kCLOSE?, Toks))
 		FI
 	FI
 
@@ -248,16 +248,16 @@ DEF parseConditional(Toks) ==
 						LET
 							(absy_else, restc) == parseExpression(rt(restb))
 						IN
-							(ExprCond(absy_if, absy_then, absy_else), rt(restc)) -- skip FI
+							(ExprCond(absy_if, absy_then, absy_else, ::(ft(Toks), ::(ft(rest), ::(ft(restb), <>)))), rt(restc)) -- skip FI
 					ELSE
 						-- ok, no else
-							(ExprCond(absy_if, absy_then, Empty(""!)), rt(restb)) -- skip FI
+							(ExprCond(absy_if, absy_then, Empty(""!), ::(ft(Toks), ::( ft(rest), <>))), rt(restb)) -- skip FI
 					FI
 			ELSE
-				(Error(("parseConditional: THEN expected"!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+				(Error(("parseConditional: THEN expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kDEF?, Toks))
 			FI
 	ELSE
-		(Error(("parseConditional: IF expected"!) ++ insteadOf(ft(Toks))), skipTo(kDEF?, Toks))
+		(Error(("parseConditional: IF expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), skipTo(kDEF?, Toks))
 	FI
 
 -- parseParamsDecl
@@ -280,11 +280,11 @@ DEF parseParamsDecl(Toks) ==
 			IF kCLOSE?(ft(rt(Toks))) THEN
 				(Empty(""!), rt(skipTo(kCLOSE?, Toks)))
 			ELSE
-				(Error("parseParamsDecl: ')' or identifier expected"!), rt(skipTo(kCLOSE?, Toks)))
+				(Error("parseParamsDecl: ')' or identifier expected"!, ::(ft(Toks), <>)), rt(skipTo(kCLOSE?, Toks)))
 			FI
 		FI
 	ELSE
-		(Error(("parseParamsDecl: '(' expected"!) ++ insteadOf(ft(Toks))), Toks)
+		(Error(("parseParamsDecl: '(' expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), Toks)
 	FI
 
 -- parseSingleArg
@@ -294,9 +294,9 @@ DEF parseSingleArg(Toks) ==
 		LET 
 			(absy_type, trest) == parseType(rt(rt(Toks)))
 		IN
-			(SingleArg(value(ft(Toks))!, absy_type), trest)
+			(SingleArg(value(ft(Toks))!, absy_type, ::(ft(Toks), <>)), trest)
 	ELSE
-		(Error("parseSingleArg: ':' or expected"!), skipTo(kCLOSE?, Toks))
+		(Error("parseSingleArg: ':' or expected"!, ::(ft(Toks), <>)), skipTo(kCLOSE?, Toks))
 	FI
 
 -- parseArgList
@@ -315,10 +315,10 @@ DEF parseArgList(argabsy,Toks) ==
 					LET 
 						(absy_next, nexrest) == parseArgList(absy_single,rt(rest))
 					IN
-						(ParamsDecl(absy_single, absy_next), rt(skipTo(kCLOSE?, Toks)))
+						(ParamsDecl(absy_single, absy_next, ::(ft(Toks), <>)), rt(skipTo(kCLOSE?, Toks)))
 				FI
 		ELSE
-			(Error(("parseArgList: identifier expected"!) ++ insteadOf(ft(Toks))), Toks)
+			(Error(("parseArgList: identifier expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), Toks)
 		FI
 	-- FI
 
@@ -341,12 +341,12 @@ FUN parseType : seq[token] -> absy ** seq[token]
 DEF parseType(Toks) ==
 	IF knat?(ft(Toks)) or kbool?(ft(Toks)) THEN
 		IF knat?(ft(Toks)) THEN
-			(Type("nat"!), rt(Toks))
+			(Type("nat"!, ::(ft(Toks), <>)), rt(Toks))
 		ELSE
-			(Type("bool"!), rt(Toks))
+			(Type("bool"!, ::(ft(Toks), <>)), rt(Toks))
 		FI
 	ELSE
-		(Error(("parseType: 'nat' or 'bool' expected"!) ++ insteadOf(ft(Toks))), Toks)
+		(Error(("parseType: 'nat' or 'bool' expected"!) ++ insteadOf(ft(Toks)), ::(ft(Toks), <>)), Toks)
 	FI
 -- insteadOf
 FUN insteadOf : token -> string
@@ -360,3 +360,11 @@ DEF parsetest(s) ==
 DEF `(failure(r)) == `(r)
 DEF `(success(r)) == `(r)
 
+DEF printToks(s:seq[token]) ==
+	IF <>?(s) THEN
+		""
+	ELSE
+		`(ft(s)) -- bisher nur den ersten ausgeben ..
+	FI
+
+-- THE LAST LINE

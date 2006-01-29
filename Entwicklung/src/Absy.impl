@@ -24,6 +24,7 @@ IMPLEMENTATION Absy
 IMPORT	Denotation COMPLETELY
         String COMPLETELY
 		StringConv COMPLETELY
+		Seq COMPLETELY
 
 DATA absy == 	
 		-- Prog: ft = first DEF of type Def, rt = all other DEFs of type Prog (or, if last, also DEF)
@@ -31,39 +32,39 @@ DATA absy ==
 
 		-- Def: funcdecl = left side of def of type FuncDecl, 
 		--      funcimpl = right side of def of type ExprTerm, ExprFunc or ExprCond
-		Def(funcdecl:absy, funcimpl:absy) 
+		Def(funcdecl:absy, funcimpl:absy, toks:seq[token]) 
 
 		-- FuncDecl: Function-Declaration name = identifier, type = return-type of function 
 		-- paramsdecl are parameters of this Function
-		FuncDecl(name:string, tp:absy, paramsdecl:absy) 
+		FuncDecl(name:string, tp:absy, paramsdecl:absy, toks:seq[token]) 
 
 		-- SingleArg: Single Arg name: String, type: Type
-		SingleArg(name:string, tp:absy) 
+		SingleArg(name:string, tp:absy, toks:seq[token]) 
 
 		-- ParamsDecl: Parameter-Declaration: ft = first parameter (of type lhs), rt = rest 
 		-- ft is of type SingleArg, rt is of Type ParamsDecl
-		ParamsDecl(ft:absy, rt:absy)
+		ParamsDecl(ft:absy, rt:absy, toks:seq[token])
 
 		-- Type: only nat or bool
-		Type(tp:string)
+		Type(tp:string, toks:seq[token])
 
 		-- ExprTerm: this expression is a leaf: number, true or false
-		ExprTerm(term:string)
+		ExprTerm(term:string, toks:seq[token])
 
 		-- ExprFunc: sth. like a function call:  name = name of function, params = parameters
-		ExprFunc(name:string, params:absy)
+		ExprFunc(name:string, params:absy, toks:seq[token])
 
 		-- Params: ft = first parameter of type Expr*, rt = rest of type Params
-		Params(ft:absy, rt:absy)
+		Params(ft:absy, rt:absy, toks:seq[token])
 
 		-- ExprCond: IF if THEN then ELSE else FI, each of type Expr
-		ExprCond(if:absy, then:absy, else:absy)
+		ExprCond(if:absy, then:absy, else:absy, toks:seq[token])
 
 		-- eine variable
-		ExprId(name:string)
+		ExprId(name:string, toks:seq[token])
 
 		-- Error: this part of the tree couldn't be parsed correctly, error-information
-		Error(error:string)
+		Error(error:string, toks:seq[token])
 
 		-- Empty
 		Empty(e:string)
@@ -71,16 +72,16 @@ DATA absy ==
 
 -- Definition how to print our absy to stdout
 DEF `(Prog(a,b)) == "Prog( " ++ `(a) ++ "\n" ++ `(b) ++ ")"
-DEF `(Def(a,b)) == "Def( " ++ `(a) ++ ", " ++ `(b) ++ ")"
-DEF `(FuncDecl(a,b,c)) == "FuncDecl: " ++ `(a) ++ "( " ++ `(c) ++ ") returns (" ++ `(b) ++ ")" 
-DEF `(ParamsDecl(a,b)) == "paramsdecl:(" ++ `(a) ++ ", " ++ `(b) ++ ")endparamdecl"
-DEF `(SingleArg(a,b)) == "SA(" ++ `(a) ++ " with " ++ `(b) ++ ")SA "
-DEF `(Type(a)) == "Type: " ++ `(a)
-DEF `(ExprTerm(a)) == "Term: " ++ `(a)
-DEF `(ExprFunc(a, b)) == "ExprFunc: " ++ `(a) ++ "( " ++ `(b) ++ ")"
-DEF `(Params(a, b)) == "Params: (" ++ `(a) ++ ", " ++ `(b) ++ ")"
-DEF `(ExprCond(a, b, c)) == "IF\n{   " ++ `(a) ++ "\n}\nTHEN\n{   " ++ `(b) ++ "\n}\nELSE\n{   " ++ `(c) ++ "\n}\n"
-DEF `(ExprId(a)) == "id(" ++ `(a) ++ ")"
-DEF `(Error(a)) == `(a)
+DEF `(Def(a,b, toks)) == "Def( " ++ `(a) ++ ", " ++ `(b) ++ ")"
+DEF `(FuncDecl(a,b,c, toks)) == "FuncDecl: " ++ `(a) ++ "( " ++ `(c) ++ ") returns (" ++ `(b) ++ ")" 
+DEF `(ParamsDecl(a,b, toks)) == "paramsdecl:(" ++ `(a) ++ ", " ++ `(b) ++ ")endparamdecl"
+DEF `(SingleArg(a,b, toks)) == "SA(" ++ `(a) ++ " with " ++ `(b) ++ ")SA "
+DEF `(Type(a, toks)) == "Type: " ++ `(a)
+DEF `(ExprTerm(a, toks)) == "Term: " ++ `(a)
+DEF `(ExprFunc(a, b, toks)) == "ExprFunc: " ++ `(a) ++ "( " ++ `(b) ++ ")"
+DEF `(Params(a, b, toks)) == "Params: (" ++ `(a) ++ ", " ++ `(b) ++ ")"
+DEF `(ExprCond(a, b, c, toks)) == "IF\n{   " ++ `(a) ++ "\n}\nTHEN\n{   " ++ `(b) ++ "\n}\nELSE\n{   " ++ `(c) ++ "\n}\n"
+DEF `(ExprId(a, toks)) == "id(" ++ `(a) ++ ")"
+DEF `(Error(a, toks)) == `(a)
 DEF `(Empty(e)) == "E"
 
