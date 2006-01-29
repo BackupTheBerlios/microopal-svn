@@ -14,14 +14,6 @@
 --       the summing terms the latter one yields results for greater 
 --       input values since it doesn't use multiplication and hence 
 --       avoids overflows
-DEF isqrt(n:nat, newton:bool):nat ==
-	IF lt(n, 2) THEN n ELSE
-		IF newton THEN
-			hlpnewtonsqrt(n, 0, n)
-		ELSE
-			hlpisqrt(n, 1, 4, 5)
-		FI
-	FI
 
 -- help function for summing the terms
 -- central algorithm for the summing terms method
@@ -46,6 +38,15 @@ DEF hlpnewtonsqrt(n:nat, low:nat, high:nat):nat ==
 	   ELSE
 	   	low
 	   FI
+	FI
+
+DEF isqrt(n:nat, newton:bool):nat ==
+	IF lt(n, 2) THEN n ELSE
+		IF newton THEN
+			hlpnewtonsqrt(n, 0, n)
+		ELSE
+			hlpisqrt(n, 1, 4, 5)
+		FI
 	FI
 
 -- Note: - newtons method allows input values up to about 92600; after that

@@ -223,7 +223,7 @@ DEF chk(Type(n, toks), e) ==
 		IF n = ("bool"!) THEN
 			(success, boolean, <>)
 		ELSE
-			(failure(error(global, "'nat' or 'bool' expected" ++ printToks(toks))), boolean, <>)
+			(failure(error(pos(ft(toks)), "'nat' or 'bool' expected" ++ printToks(toks))), boolean, <>)
 		FI
 	FI
 
@@ -302,16 +302,16 @@ DEF chk(ExprFunc(n, p, toks), e) ==
 						(cr1, unknown, <>)
 					FI
 			ELSE
-				(failure(error(global, "Identifier is not a function:" ++ printToks(toks))), unknown, <>)
+				(failure(error(pos(ft(toks)), "Identifier is not a function:" ++ printToks(toks))), unknown, <>)
 			FI
 		ELSE
-				(failure(error(global, "Identifier not found: " ++ printToks(toks) ++ printEnv(e))), unknown, <>)
+				(failure(error(pos(ft(toks)), "Identifier not found: " ++ printToks(toks) ++ printEnv(e))), unknown, <>)
 		FI
 
 -- expects env of current function as 1st element in seq[env]
 DEF chk(Params(f, r, toks), e) ==
 		IF <>?(pars(ft(e))) THEN -- wenn parameter uebergeben, aber funktion keinen mehr benoetigt
-			(failure(error(global, "Too many arguments, function '" ++ `(name(ft(e))) ++ "' needs less parameters" ++ printToks(toks) )), unknown, <>)
+			(failure(error(pos(ft(toks)), "Too many arguments, function '" ++ `(name(ft(e))) ++ "' needs less parameters" ++ printToks(toks) )), unknown, <>)
 		ELSE
 			IF Empty?(r) THEN -- also ok
 				IF <>?(rt(pars(ft(e)))) THEN -- wenn keine argumente folgen, dann muss rechts empty stehen
@@ -329,17 +329,17 @@ DEF chk(Params(f, r, toks), e) ==
 								--(failure(error(global, "last parameter:" ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) ++ printEnv(e))), unknown, <>)
 							--		chk(r, ::(en, rt(e))) -- also success, ersetzen und den rest checken
 							ELSE
-								(failure(error(global, "Parameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1)  ++ printToks(toks))), unknown, <>)
+								(failure(error(pos(ft(toks)), "Parameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1)  ++ printToks(toks))), unknown, <>)
 							FI
 						ELSE
 							(cr1, dtt1, <>)
 						FI
 				ELSE
-					(failure(error(global, "- Too few arguments, function '" ++ `(name(ft(e))) ++ "' needs more paramters " ++ printToks(toks))), unknown, <>)
+					(failure(error(pos(ft(toks)), "- Too few arguments, function '" ++ `(name(ft(e))) ++ "' needs more paramters " ++ printToks(toks))), unknown, <>)
 				FI
 			ELSE -- ok, also nicht letzter parameter und auch nicht empty in r
 				IF <>?(rt(pars(ft(e)))) THEN -- wenn keine argumente folgen, dann haette rechts empty stehen muessen
-					(failure(error(global, "- Too many arguments, function '" ++ `(name(ft(e))) ++ "' needs less paramters "  ++ printToks(toks))), unknown, <>)
+					(failure(error(pos(ft(toks)), "- Too many arguments, function '" ++ `(name(ft(e))) ++ "' needs less paramters "  ++ printToks(toks))), unknown, <>)
 				ELSE
 					LET
 						(cr1, dtt1, ad1) == chk(f, rt(e)) -- check current param 
@@ -354,7 +354,7 @@ DEF chk(Params(f, r, toks), e) ==
 									--(failure(error(global, "not last parameter:" ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) ++ printEnv(e))), unknown, <>)
 									chk(r, ::(en, rt(e))) -- also success, ersetzen und den rest checken
 							ELSE
-								(failure(error(global, "Parameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) ++ printToks(toks))), unknown, <>)
+								(failure(error(pos(ft(toks)), "Parameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) ++ printToks(toks))), unknown, <>)
 							FI
 						ELSE
 							(cr1, dtt1, <>)
@@ -377,11 +377,11 @@ DEF chk(ExprCond(if, then, else, toks), e) ==
 						IF eq(dtt2, dtt3) THEN
 							(success, dtt2, <>)
 						ELSE
-							(failure(error(global, "THEN and ELSE part return different datatypes THEN: " ++ `(dtt2) ++ "ELSE: " ++ `(dtt3))), unknown, <>)
+							(failure(error(pos(ft(rt(toks))), "THEN and ELSE part return different datatypes THEN: " ++ `(dtt2) ++ " ELSE: " ++ `(dtt3) ++ printToks(toks))), unknown, <>)
 						FI
 					ELSE
 						
-						(failure(error(global, "Condition in IF is not a boolean")), unknown, <>)
+						(failure(error(pos(ft(toks)), "Condition in IF is not a boolean")), unknown, <>)
 					FI
 				ELSE
 						(cr3, dtt3, <>)
