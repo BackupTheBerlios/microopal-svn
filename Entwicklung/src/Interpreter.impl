@@ -37,6 +37,8 @@ IMPLEMENTATION Interpreter
 
 IMPORT	Diag		COMPLETELY
 	Pos		COMPLETELY
+	Nat COMPLETELY
+	Bool ONLY not
 	NatConv		ONLY `
 	BoolConv	ONLY `
 	Scanner COMPLETELY
@@ -45,29 +47,37 @@ IMPORT	Diag		COMPLETELY
 	Options COMPLETELY
 	Diag COMPLETELY
 	Absy COMPLETELY
+	Denotation COMPLETELY
 
 
 DATA value == 
 	undefined (reason : diag)
 	number    (value  : nat)
-	boolean   (value  : bool)
+	boolean  (value  : bool)
 
 DEF `(undefined(Why)) == `(Why)
 DEF `(number(Val))    == `(Val)
 DEF `(boolean(Val))   == `(Val)
 
+FUN ` : seq[string] -> denotation
+DEF `(s:seq[string]) == 
+	IF <>?(s) THEN
+		""
+	ELSE
+		`(ft(s)) ++ `(rt(s))
+	FI
+
+-- um absy-knoten und variablennamen erweiterte environment
+DATA eenv == 
+	eenv(name:string, type:type, returns:datatype, pars:seq[datatype], parnames:seq[eenv], absy:absy) 
+
 
 DEF interpret(Opts, Absy) ==
 	LET
 		env == getAllFunctions(Absy)
-		(b, main) == isIdInEnvironment("MAIN"!, env) -- returns MAIN-Function
+		(b, main) == isIdInEEnvironment("MAIN"!, env) -- returns MAIN-Function
 	IN
-		IF number?(returns(main)) THEN
-			boolean(false)
-		ELSE
-			boolean(true)
-		FI
-		
+		eval(absy(main), env, <>)
 
 -- just to test the checker from oasys
 DEF intertest(s) ==
@@ -80,8 +90,8 @@ DEF intertest(s) ==
 				IN
 					IF success?(cr) THEN
 						-- ok, now we can interpret ;-)
-						-- `(interpret(options(false, false, false, s), absy(pr)))
-						printEnv(getAllFunctions(absy(pr)))
+						printEEnv(getAllFunctions(absy(pr))) ++
+						"Result: "  ++ `(interpret(options(false, false, false, s), absy(pr))) 
 					ELSE
 						`(undefined(reasons(cr)))
 					FI
@@ -89,16 +99,68 @@ DEF intertest(s) ==
 				`(undefined(reasons(pr)))
 			FI
 
+-- Parameter: funktion, environment, parameter-werte, returns: value
+FUN eval : absy ** seq[eenv] ** seq[value] -> value
+
+DEF eval(ExprTerm(t, toks), e, params) == 
+		IF t = ("true"!) THEN
+			boolean(true)
+		ELSE
+			IF t = ("false"!) THEN
+				boolean(false) 
+			ELSE
+				number( (`(t))!)
+			FI
+		FI
+
+DEF eval(ExprFunc(n, p, toks), e, params) == 
+		undefined(error(global, "ExprFunc nyi"))
+
+--DEF eval(ExprId(n, toks), e, params) ==
+--	IF n = name(ft(e)) THEN
+--		ft(params)
+--	ELSE
+--
+--	FI
+
+
+DEF eval(ExprCond(if, then, else, toks), e, params) ==
+	IF value(eval(if, e, params)) THEN
+		eval(then, e, params)
+	ELSE
+		eval(else, e, params)
+	FI
+
+DEF eval(_,_,_) == 
+		undefined(error(global, "Error: eval(_,_,_) got called.. "))
+
+
+FUN exec : string ** seq[value] -> value
+DEF exec(fktname, params) ==
+	IF 
+		fktname = ("add"!) THEN number(value(ft(params)) + value(ft(rt(params)))) ELSE IF 
+		fktname = ("mul"!) THEN number(value(ft(params)) * value(ft(rt(params)))) ELSE IF 
+		fktname = ("sub"!) THEN number(value(ft(params)) - value(ft(rt(params)))) ELSE IF 
+		fktname = ("div"!) THEN number(value(ft(params)) / value(ft(rt(params)))) ELSE IF 
+		fktname = ("eq"!) THEN boolean(value(ft(params))  ='Nat:nat**nat->bool value(ft(rt(params)))) ELSE IF 
+		fktname = ("lt"!) THEN boolean(value(ft(params)) < value(ft(rt(params)))) ELSE IF 
+		fktname = ("and"!) THEN boolean(value(ft(params)) and value(ft(rt(params)))) ELSE IF 
+		fktname = ("or"!) THEN boolean(value(ft(params)) or value(ft(rt(params)))) ELSE IF 
+		fktname = ("not"!) THEN boolean(not(value(ft(params)))) ELSE
+		undefined(error(global, "MUST NEVER HAPPEN .."))
+	FI FI FI FI FI FI FI FI FI
+
+
 -- getBaseEnv importet from Checker.sign
-FUN getAllFunctions : absy -> seq[env]
+FUN getAllFunctions : absy -> seq[eenv]
 DEF getAllFunctions(a) == 
 	LET
 		(dtt1, ad1) == get(a, <>)
 	IN
-		getBaseEnv ++ ad1 -- Absy always starts with type Prog
+		ad1 -- Absy always starts with type Prog
 
 -- get Environment
-FUN get : absy ** seq[env] -> datatype ** seq[env]
+FUN get : absy ** seq[eenv] -> datatype ** seq[eenv]
 
 -- Prog Knoten checken
 DEF get(Prog(ftt,rtt), e) ==
@@ -112,8 +174,10 @@ DEF get(Prog(ftt,rtt), e) ==
 DEF get(Def(fd, fi, toks), e) ==
 	LET
 		(dtt1, ad1) == get(fd, e) -- nur deklaration parsen, rest ist egal fuer env
+		-- danach FuncImpl-Knoten in Absy-eenv speichern!
+		newfunc == eenv(name(ft(ad1)), type(ft(ad1)), returns(ft(ad1)), pars(ft(ad1)), parnames(ft(ad1)), fi)
 	IN
-		(dtt1, ::(ft(ad1), <>)) -- je DEF-Knoten nur ein Eintrag!
+		(dtt1, ::(newfunc, <>)) -- je DEF-Knoten nur ein Eintrag!
 
 -- FuncDecl Knoten checken, Environment durch Parameter erweitern
 DEF get(FuncDecl(n, t, p, toks), e) ==
@@ -122,19 +186,19 @@ DEF get(FuncDecl(n, t, p, toks), e) ==
 	IN
 		IF n = ("MAIN"!) THEN -- check for main
 			LET
-				mainfunc == env(n, func, dtt1, <>)
+				mainfunc == eenv(n, func, dtt1, <>, <>, FuncDecl(n, t, p, toks))
 			IN
 				(dtt1, ::(mainfunc, <>)) -- ok, main hat keine parameter!
 		ELSE
 			IF SingleArg?(p) THEN -- falls nur ein parameter, dann hat der absy keinen ParamsDecl-Knoten
 				LET
 					(dtt2, ad2) == get(p, e)
-					newfunc == env(n, func, dtt1, ::(dtt2, <>))  -- neue funktion bauen
+					newfunc == eenv(n, func, dtt1, ::(dtt2, <>), ad2, FuncDecl(n, t, p, toks))  -- neue funktion bauen
 				IN
 					(dtt1, ::(newfunc, ad2))
 			ELSE
 				LET
-					newfunc == env(n, func, dtt1, <>)  -- neue funktion bauen
+					newfunc == eenv(n, func, dtt1, <>, <>, FuncDecl(n, t, p, toks))  -- neue funktion bauen
 					(dtt2, ad2) == get(p, ::(newfunc, e))
 				IN
 					(dtt1, ad2) -- ok
@@ -153,7 +217,7 @@ DEF get(SingleArg(n, t, toks), e) ==
 		(dtt1, _) == get(t, e)
 	IN
 		LET
-			newsort == env(n, sort, dtt1, <>)
+			newsort == eenv(n, sort, dtt1, <>, <>, SingleArg(n, t, toks))
 		IN
 			(dtt1, ::(newsort, <>))  -- neue sort zurueckgeben
 
@@ -168,17 +232,67 @@ DEF get(ParamsDecl(p1, p2, toks), e) ==
 			IF sort?(type(ft(ad2))) THEN
 				LET
 					-- with this arg as new 1st param
-					newfunc == env(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, ::(dtt2, <>))) 
+					newfunc == eenv(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, ::(dtt2, <>)), ad2 ++ ad1 ++ parnames(ft(e)), ParamsDecl(p1, p2, toks)) 
 				IN
 					(unknown, ::(newfunc, ad2 ++ ad1))
 			ELSE
 				LET
 					-- with this arg as new 1st param
-					newfunc == env(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, pars(ft(ad2))))
+					newfunc == eenv(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, pars(ft(ad2))), rt(ad2) ++ ad1 ++ parnames(ft(e)), ParamsDecl(p1, p2, toks))
 				IN
 					(unknown, ::(newfunc, rt(ad2) ++ ad1))
 			FI
 
 DEF get(_,_) == (unknown, <>)
+
+FUN ` : eenv -> denotation
+
+DEF `(eenv(n, func, r, p, pn, a)) == 
+	"\nfunc: " ++ `(n) ++ "(" ++ pEEnv(pn) ++ "):" ++ `(r)
+
+DEF `(eenv(n, sort, r, p, pn, a)) == 
+	`(n) ++ ":" ++ `(r) 
+
+FUN printEEnv : seq[eenv] -> denotation
+DEF printEEnv(s) ==
+	IF <>?(s) THEN
+		""
+	ELSE
+		"\n----------------------------\n" ++
+		"Currently known Functions:\n" ++ 
+		pEEnv(s) ++ 
+		"\n----------------------------\n"
+	FI
+
+FUN pEEnv : seq[eenv] -> denotation
+DEF pEEnv(s) ==
+	IF <>?(s) THEN
+		""
+	ELSE
+		IF <>?(rt(s)) THEN
+			`(ft(s))
+		ELSE
+			IF sort?(type(ft(s))) THEN
+				`(ft(s)) ++ ", " ++ pEEnv(rt(s))
+			ELSE
+				`(ft(s)) ++ pEEnv(rt(s))
+			FI
+		FI
+	FI
+
+-- returns true if the id is in this eenvironment
+FUN isIdInEEnvironment : string ** seq[eenv] -> bool ** eenv
+DEF isIdInEEnvironment(id, e) ==
+	IF <>?(e) THEN
+		(false, eenv("error"!, func, unknown, <>, <>, Error("x"!, <>)))
+	ELSE
+		IF name(ft(e)) = id THEN
+			(true, ft(e)) 
+		ELSE
+			isIdInEEnvironment(id , rt(e))
+		FI
+	FI
+
+
 
 -- THE LAST LINE

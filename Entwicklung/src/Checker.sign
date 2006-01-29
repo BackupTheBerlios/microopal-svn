@@ -66,5 +66,10 @@ FUN isIdInEnvironment : string ** seq[env] -> bool ** env
 
 -- prints the environment
 FUN printEnv : seq[env] -> denotation
+FUN pEnv : seq[env] -> denotation
+FUN ` : env -> denotation
+FUN ` : datatype -> denotation
+FUN ` : type -> denotation
+FUN ` : seq[datatype] -> denotation
 	
 -- THE END

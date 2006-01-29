@@ -55,17 +55,14 @@ DATA checkResult ==
 DATA type   == sort func unknown
 DATA datatype == number boolean unknown
 
-FUN ` : type -> denotation
 DEF `(sort) == "sort"
 DEF `(func) == "func"
 DEF `(unknown:type) == "unknown"
 
-FUN ` : datatype -> denotation
 DEF `(number) == "number"
 DEF `(boolean) == "boolean"
 DEF `(unknown:datatype) == "unknown"
 
-FUN ` : env -> denotation
 DEF `(env(n, func, r, p)) == 
 	"\nfunc: " ++ `(n) ++ ", returns: " ++ `(r) ++ " expected args: (" ++ `(p) ++ ")"
 
@@ -82,7 +79,6 @@ DEF printEnv(s) ==
 		"\n----------------------------\n"
 	FI
 
-FUN pEnv : seq[env] -> denotation
 DEF pEnv(s) ==
 	IF <>?(s) THEN
 		""
@@ -91,7 +87,6 @@ DEF pEnv(s) ==
 	FI
 
 
-FUN ` : seq[datatype] -> denotation
 DEF `(a) == 
 	IF <>?(a) THEN
 		""
