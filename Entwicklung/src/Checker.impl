@@ -55,10 +55,39 @@ DATA checkResult ==
 DATA type   == sort func unknown
 DATA datatype == number boolean unknown
 
+FUN ` : type -> denotation
+DEF `(sort) == "sort"
+DEF `(func) == "func"
+DEF `(unknown:type) == "unknown"
+
 FUN ` : datatype -> denotation
-DEF `(number) == "number"!
-DEF `(boolean) == "boolean"!
-DEF `(unknown) == "unknown"!
+DEF `(number) == "number"
+DEF `(boolean) == "boolean"
+DEF `(unknown:datatype) == "unknown"
+
+FUN ` : env -> denotation
+DEF `(env(n, t, r, p)) == 
+	"\nenv: name: " ++ `(n) ++ ", type:" ++ `(t) ++ ", returns: " ++ `(r) ++ " expected args: (" ++ `(p) ++ ")"
+
+FUN printEnv : seq[env] -> denotation
+DEF printEnv(s) ==
+	IF <>?(s) THEN
+		""
+	ELSE
+			`(ft(s)) ++ printEnv(rt(s))
+	FI
+
+FUN ` : seq[datatype] -> denotation
+DEF `(a) == 
+	IF <>?(a) THEN
+		""
+	ELSE
+		IF <>?(rt(a)) THEN
+			`(ft(a)) ++ `(rt(a))
+		ELSE
+			`(ft(a)) ++ ", " ++ `(rt(a))
+		FI
+	FI
 
 -- the Environment will be a sequence of env's, carrying identifier, type (func or sort) and return-type
 DATA env ==
@@ -67,7 +96,7 @@ DATA env ==
 -- the 'main' function of this module (exported in .sign)
 DEF check(o, a) ==
 	LET
-		(cr, dtt) == chk(a, getBaseEnv)
+		(cr, dtt, _) == chk(a, getBaseEnv)
 	IN
 		cr
 
@@ -78,42 +107,50 @@ DEF eq(number, boolean) == false
 DEF eq(boolean, boolean) == true
 DEF eq(_,_) == false
 
-FUN chk : absy ** seq[env] -> checkResult ** datatype
+-- returned was zur environment hinzugefuegt werden soll
+-- wird nur bei FuncDecl und drunterliegenden verwendet
+FUN chk : absy ** seq[env] -> checkResult ** datatype ** seq[env]
 
 -- Prog Knoten checken
 DEF chk(Prog(ftt,rtt), e) ==
 	LET
-		(cR1, dtt1) == chk(ftt, e)
-		(cR2, dtt2) == chk(rtt, e)
+		(cR1, dtt1, ad1) == chk(ftt, e)
 	IN
 		IF success?(cR1) THEN
-			IF success?(cR2) THEN
-				(success, dtt1)
-			ELSE
-				(cR2, dtt2)
-			FI
+			LET
+				(cR2, dtt2, ad2) == chk(rtt, ::(ft(ad1), e)) -- add new function to env
+			IN
+				IF success?(cR2) THEN
+					(success, dtt1, <>)
+				ELSE
+					(cR2, dtt2, <>)
+				FI
 		ELSE
-			(cR1, dtt1)
+			(cR1, dtt1, <>)
 		FI
 
 -- Def Knoten checken
 DEF chk(Def(fd, fi), e) ==
 	LET
-		(cR1, dtt1) == chk(fd, e)
-		(cR2, dtt2) == chk(fi, e)
+		(cR1, dtt1, ad1) == chk(fd, e)
 	IN
 		IF success?(cR1) THEN
-			IF success?(cR2) THEN
-				IF eq(dtt1, dtt2) THEN
-					(success, dtt1)
+				--(failure(error(global, "Def exports into implementation" ++ printEnv(ad1) ++ "\nto" ++ printEnv(e))), dtt1, ad1)
+			LET
+				(cR2, dtt2, ad2) == chk(fi, ad1 ++ e) -- ok, deklaration mit in implementation uebernehmen
+			IN
+				IF success?(cR2) THEN
+					IF eq(dtt1, dtt2) THEN
+						(success, dtt1, ::(ft(ad1), <>))
+						--(failure(error(global, "Def exports" ++ printEnv(::(ft(ad1), <>)) ++ "\nto" ++ printEnv(e))), dtt1, ad1)
+					ELSE
+						(failure(error(global, "Def declaration and implementation return different datatypes. DEF declared " ++ `(dtt1) ++ " but implementation returns a " ++ `(dtt2))), unknown, <>)
+					FI
 				ELSE
-					(failure(error(global, "Def declaration and implementation return different datatypes. DEF declared " ++ `(dtt1) ++ " but implementation returns a " ++ `(dtt2))), unknown)
+					(cR2, dtt2, <>)
 				FI
-			ELSE
-				(cR2, dtt2)
-			FI
 		ELSE
-				(cR1, dtt1)
+				(cR1, dtt1, <>)
 		FI
 
 -- FuncDecl Knoten checken, Environment durch Parameter erweitern
@@ -121,55 +158,114 @@ DEF chk(FuncDecl(n, t, p), e) ==
 	LET 
 		(b, en) == isIdInEnvironment(n, e)
 	IN
-	IF b THEN
-		(failure(error(global, "name already exists")), boolean)
-	ELSE
-		LET
-			(cR1, dtt1) == chk(t, e)
-			(cR2, dtt2) == chk(p, e)
-		IN
-			IF success?(cR1) THEN
-				IF success?(cR2) THEN
-					(success, dtt1)
+		IF b THEN
+			(failure(error(global, "name already exists")), boolean, <>)
+		ELSE
+			LET
+				(cR1, dtt1, ad1) == chk(t, e)
+			IN
+				IF success?(cR1) THEN
+					IF n = ("MAIN"!) THEN -- check for main
+						LET
+							mainfunc == env(n, func, dtt1, <>)
+						IN
+						(success, dtt1, ::(mainfunc, <>)) -- ok, main hat keine parameter!
+						--(failure(error(global, "Main found: " ++ `(mainfunc))), unknown, <>)
+					ELSE
+						IF SingleArg?(p) THEN -- falls nur ein parameter, dann hat der absy keinen ParamsDecl-Knoten
+							LET
+								(cR2, dtt2, ad2) == chk(p, e)
+								newfunc == env(n, func, dtt1, ::(dtt2, <>))  -- neue funktion bauen
+							IN
+								IF success?(cR2) THEN
+									(success, dtt1, ::(newfunc, ad2))
+								ELSE
+									(cR2, dtt2, <>)
+								FI
+						ELSE
+
+							LET
+								newfunc == env(n, func, dtt1, <>)  -- neue funktion bauen
+								(cR2, dtt2, ad2) == chk(p, ::(newfunc, e))
+							IN
+								IF success?(cR2) THEN
+									(success, dtt1, ad2) -- ok
+								--	(failure(error(global, "FUncDecl exports: " ++ printEnv(ad2))), boolean, <>)
+								ELSE
+									(cR2, dtt2, <>)
+								FI
+						FI
+					FI
 				ELSE
-					(cR2, dtt2)
+					(cR1, dtt1, <>)
 				FI
-			ELSE
-				(cR1, dtt1)
-			FI
-	FI
+		FI
 
 DEF chk(Type(n), e) ==
 	IF n = ("nat"!) THEN
-		(success, number)
+		(success, number, <>)
 	ELSE
 		IF n = ("bool"!) THEN
-			(success, boolean)
+			(success, boolean, <>)
 		ELSE
-			(failure(error(global, "'nat' or 'bool' expected")), boolean)
+			(failure(error(global, "'nat' or 'bool' expected")), boolean, <>)
 		FI
 	FI
 
 DEF chk(SingleArg(n, t), e) ==
 	LET 
-		(cR1, dtt1) == chk(t, e)
+		(cR1, dtt1, _) == chk(t, e)
 	IN
-		(cR1, dtt1)
+		IF success?(cR1) THEN
+			-- eigenes arg in env und return datatype of arg
+			LET
+				newsort == env(n, sort, dtt1, <>)
+			IN
+				(cR1, dtt1, ::(newsort, <>))  -- neue sort zurueckgeben
+		ELSE
+			(cR1, dtt1, <>)
+		FI
 
-
-
+-- erwartet aktuelle funktion als erstes element in env, oder letztes argument
 DEF chk(ParamsDecl(p1, p2), e) ==
-	(success, boolean)
---				(failure(error(global, "error in paramsdecl")), boolean)
+	LET
+		(cr2, dtt2, ad2) == chk(p2,  e)
+	IN
+		IF success?(cr2) THEN
+			LET
+				(cr1, dtt1, ad1) == chk(p1, ad2 ++ e) 
+			IN
+				IF success?(cr1) THEN
+					IF sort?(type(ft(ad2))) THEN
+						LET
+							-- with this arg as new 1st param
+							newfunc == env(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, ::(dtt2, <>))) 
+						IN
+							(success, unknown, ::(newfunc, ad2 ++ ad1))
+							--(failure(error(global, "pd1: " ++ printEnv(::(newfunc, ad1 )))), boolean, <>)
+					ELSE
+						LET
+							-- with this arg as new 1st param
+							newfunc == env(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, pars(ft(ad2))))
+						IN
+							(success, unknown, ::(newfunc, rt(ad2) ++ ad1))
+							--(failure(error(global, "pd2: " ++ printEnv(::(newfunc, rt(ad2) ++ ad1)))), boolean, <>)
+					FI
+				ELSE
+					(cr1, dtt1, <>)
+				FI
+		ELSE
+			(cr2, dtt2, <>)
+		FI
 
 DEF chk(ExprTerm(t), e) ==
 	IF t = ("true"!) THEN
-		(success, boolean)
+		(success, boolean, <>)
 	ELSE
 		IF t = ("false"!) THEN
-			(success, boolean)
+			(success, boolean, <>)
 		ELSE
-			(success, number)
+			(success, number, <>)
 		FI
 	FI
 		
@@ -180,54 +276,124 @@ DEF chk(ExprFunc(n, p), e) ==
 		(b, en) == isIdInEnvironment(n, e)
 	IN
 		IF b THEN
-			IF func?(type(en)) THEN
-	--	env(name:string, type:type, returns:datatype) 
+			IF func?(type(en)) THEN -- ja, ist eine funktion
 				LET 
-					(cr1, dtt1) == chk(p, ::(en, e))
+					(cr1, dtt1, ad1) == chk(p, ::(en, e)) -- checke parameter
 				IN
-					(cr1, returns(en)) -- add current function as first element in environment, return-type as in ienvironment
+					IF success?(cr1) THEN
+						--(failure(error(global, "func call:" ++ `(n) ++ " with "  ++ printEnv(e))), unknown, <>)
+						(cr1, returns(en), <>) -- add current function as first element in environment, return-type as in environment
+					ELSE
+						(cr1, unknown, <>)
+					FI
 			ELSE
-				(failure(error(global, "Identifier is not a function")), unknown)
+				(failure(error(global, "Identifier is not a function:" ++ `(n))), unknown, <>)
 			FI
 		ELSE
-				(failure(error(global, "Identifier not found")), unknown)
+				(failure(error(global, "Identifier not found: " ++ `(n) ++ printEnv(e))), unknown, <>)
 		FI
 
 -- expects env of current function as 1st element in seq[env]
 DEF chk(Params(f, r), e) ==
-		IF <>?(pars(ft(e))) THEN
-			(failure(error(global, "Too many arguments, function needs less parameters")), unknown)
+		IF <>?(pars(ft(e))) THEN -- wenn parameter uebergeben, aber funktion keinen mehr benoetigt
+			(failure(error(global, "Too many arguments, function '" ++ `(name(ft(e))) ++ "' needs less parameters" )), unknown, <>)
 		ELSE
-			LET
-				(cr1, dtt1) == chk(f, rt(e)) -- check current param 
-			IN
-				IF success?(cr1) THEN
-					IF eq(dtt1, ft(pars(ft(e)))) THEN -- wenn verlangter parameter = uebergebener parameter
-							-- ok, also erster parameter gecheckt, 
-							-- diesen nun entfernen und nochmal mit einem parameter weniger fuer den rest
-						LET
-							en == env(name(ft(e)), type(ft(e)), returns(ft(e)), rt(pars(ft(e))))
-						IN
-							chk(r, ::(en, rt(e))) -- also success, ersetzen und den rest checken
+			IF Empty?(r) THEN -- also ok
+				IF <>?(rt(pars(ft(e)))) THEN -- wenn keine argumente folgen, dann muss rechts empty stehen
+					LET
+						(cr1, dtt1, ad1) == chk(f, rt(e)) -- check current param 
+					IN
+						IF success?(cr1) THEN
+							IF eq(dtt1, ft(pars(ft(e)))) THEN -- wenn verlangter parameter = uebergebener parameter
+									-- ok, also erster parameter gecheckt, 
+									-- diesen nun entfernen und nochmal mit einem parameter weniger fuer den rest
+								LET
+									en == env(name(ft(e)), type(ft(e)), returns(ft(e)), rt(pars(ft(e))))
+								IN
+									(success, unknown, ::(en, rt(e)))
+								--(failure(error(global, "last parameter:" ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) ++ printEnv(e))), unknown, <>)
+							--		chk(r, ::(en, rt(e))) -- also success, ersetzen und den rest checken
+							ELSE
+								(failure(error(global, "Parameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) )), unknown, <>)
+							FI
+						ELSE
+							(cr1, dtt1, <>)
+						FI
+				ELSE
+					(failure(error(global, "- Too many arguments, function '" ++ `(name(ft(e))) ++ "' needs more paramters " )), unknown, <>)
+				FI
+			ELSE -- ok, also nicht letzter parameter und auch nicht empty in r
+				IF <>?(rt(pars(ft(e)))) THEN -- wenn keine argumente folgen, dann haette rechts empty stehen muessen
+					(failure(error(global, "- Too few arguments, function '" ++ `(name(ft(e))) ++ "' needs less paramters " )), unknown, <>)
+				ELSE
+					LET
+						(cr1, dtt1, ad1) == chk(f, rt(e)) -- check current param 
+					IN
+						IF success?(cr1) THEN
+							IF eq(dtt1, ft(pars(ft(e)))) THEN -- wenn verlangter parameter = uebergebener parameter
+									-- ok, also erster parameter gecheckt, 
+									-- diesen nun entfernen und nochmal mit einem parameter weniger fuer den rest
+								LET
+									en == env(name(ft(e)), type(ft(e)), returns(ft(e)), rt(pars(ft(e))))
+								IN
+									--(failure(error(global, "not last parameter:" ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) ++ printEnv(e))), unknown, <>)
+									chk(r, ::(en, rt(e))) -- also success, ersetzen und den rest checken
+							ELSE
+								(failure(error(global, "PParameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) )), unknown, <>)
+							FI
+						ELSE
+							(cr1, dtt1, <>)
+						FI
+					FI
+			FI
+		FI
+
+DEF chk(ExprCond(if, then, else), e) ==
+	LET
+		(cr1, dtt1, ad1) == chk(if, e)
+		(cr2, dtt2, ad2) == chk(then, e)
+		(cr3, dtt3, ad3) == chk(else, e)
+	IN
+		IF success?(cr1) THEN
+			IF success?(cr2) THEN
+				IF success?(cr3) THEN
+
+					IF eq(dtt1, boolean) THEN
+						IF eq(dtt2, dtt3) THEN
+							(success, dtt2, <>)
+						ELSE
+							(failure(error(global, "THEN and ELSE part return different datatypes THEN: " ++ `(dtt2) ++ "ELSE: " ++ `(dtt3))), unknown, <>)
+						FI
 					ELSE
-						(failure(error(global, "Parameter mismatch: expected " ++ `(ft(pars(ft(e)))) ++ " but got " ++ `(dtt1) )), boolean)
+						
+						(failure(error(global, "Condition in IF is not a boolean")), unknown, <>)
 					FI
 				ELSE
-					(cr1, dtt1)
+						(cr3, dtt3, <>)
 				FI
+			ELSE
+				(cr2, dtt2, <>)
+			FI
+		ELSE
+			(cr1, dtt1, <>)
 		FI
-DEF chk(ExprCond(if, then, else), e) ==
-	(success, boolean)
 
 DEF chk(ExprId(n), e) ==
-	(success, number)
+	LET
+		(b, en) == isIdInEnvironment(n, e) 
+	IN
+		IF b THEN
+			(success, returns(en), <>)
+		ELSE
+			(failure(error(global, "Unknown variable: " ++ `(n) )), unknown, <>)
+		FI
 
 DEF chk(Error(s), e) ==
-	(failure(error(global, `(s))), boolean)
+	(failure(error(global, `(s))), boolean, <>)
 
 -- also wenn keine weiteren parameter angegeben
 DEF chk(Empty(s), e) ==
-		(success, unknown)
+		(success, unknown, <>)
 
 -- just to test the checker from oasys
 DEF checktest(s) ==
@@ -242,7 +408,7 @@ DEF checktest(s) ==
 
 
 DEF chk(_, _) == 
-			(failure(error(global, "broken absy, correct parser!")), boolean)
+			(failure(error(global, "broken absy, correct parser!")), boolean, <>)
 
 DEF `(success) == "checkResult success"
 DEF `(failure(a)) == "checkResult failure: '" ++ `(a) ++ "'"
