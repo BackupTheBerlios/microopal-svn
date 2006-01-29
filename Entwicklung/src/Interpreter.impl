@@ -1,9 +1,50 @@
+/*
+*	MicroOpal - compiler for a very simple opal slang written in opal
+*	Copyright (C) 2005 Jan Kechel, Marc Schachtel
+*
+*	This program is free software; you can redistribute it and/or
+*	modify it under the terms of the GNU General Public License
+*	as published by the Free Software Foundation; either version 2
+*	of the License, or (at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program; if not, write to the Free Software
+*	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*
+*
+*	the interpreter
+*
+*	to test this interpreter with oasys try:
+*
+*	#oasys
+*	>f Interpreter.impl
+*	Interpreter.impl>e intertest("fac")
+*
+*	Where fac ist the basename of a sourcefile ending with .mo (in this example: fac.mo)
+*
+*	Steps:
+*	1. create base-environment with reserved words
+*	2. parse 1st level of all DEFs in Absy, and add function-names to environment
+*   3. evaluate MAIN
+*/
+
 IMPLEMENTATION Interpreter
 
 IMPORT	Diag		COMPLETELY
 	Pos		COMPLETELY
 	NatConv		ONLY `
 	BoolConv	ONLY `
+	Scanner COMPLETELY
+	Parser COMPLETELY
+	Checker COMPLETELY
+	Options COMPLETELY
+	Diag COMPLETELY
+	Absy COMPLETELY
 
 
 DATA value == 
@@ -17,4 +58,127 @@ DEF `(boolean(Val))   == `(Val)
 
 
 DEF interpret(Opts, Absy) ==
-    undefined(error(global, "the interpreter is not yet implemented!"))
+	LET
+		env == getAllFunctions(Absy)
+		(b, main) == isIdInEnvironment("MAIN"!, env) -- returns MAIN-Function
+	IN
+		IF number?(returns(main)) THEN
+			boolean(false)
+		ELSE
+			boolean(true)
+		FI
+		
+
+-- just to test the checker from oasys
+DEF intertest(s) ==
+		LET 
+			pr == parse(options(false, false, false, s), scantest(s))
+		IN
+			IF success?(pr) THEN
+				LET
+					cr == check(options(false, false, false, s), absy(pr))
+				IN
+					IF success?(cr) THEN
+						-- ok, now we can interpret ;-)
+						-- `(interpret(options(false, false, false, s), absy(pr)))
+						printEnv(getAllFunctions(absy(pr)))
+					ELSE
+						`(undefined(reasons(cr)))
+					FI
+			ELSE
+				`(undefined(reasons(pr)))
+			FI
+
+-- getBaseEnv importet from Checker.sign
+FUN getAllFunctions : absy -> seq[env]
+DEF getAllFunctions(a) == 
+	LET
+		(dtt1, ad1) == get(a, <>)
+	IN
+		getBaseEnv ++ ad1 -- Absy always starts with type Prog
+
+-- get Environment
+FUN get : absy ** seq[env] -> datatype ** seq[env]
+
+-- Prog Knoten checken
+DEF get(Prog(ftt,rtt), e) ==
+	LET
+		(dtt1, ad1) == get(ftt, e)
+		(dtt2, ad2) == get(rtt, e)
+	IN
+			(unknown, (ad1 ++ ad2))
+
+-- Def Knoten checken
+DEF get(Def(fd, fi, toks), e) ==
+	LET
+		(dtt1, ad1) == get(fd, e) -- nur deklaration parsen, rest ist egal fuer env
+	IN
+		(dtt1, ::(ft(ad1), <>)) -- je DEF-Knoten nur ein Eintrag!
+
+-- FuncDecl Knoten checken, Environment durch Parameter erweitern
+DEF get(FuncDecl(n, t, p, toks), e) ==
+	LET 
+		(dtt1, ad1) == get(t, e)
+	IN
+		IF n = ("MAIN"!) THEN -- check for main
+			LET
+				mainfunc == env(n, func, dtt1, <>)
+			IN
+				(dtt1, ::(mainfunc, <>)) -- ok, main hat keine parameter!
+		ELSE
+			IF SingleArg?(p) THEN -- falls nur ein parameter, dann hat der absy keinen ParamsDecl-Knoten
+				LET
+					(dtt2, ad2) == get(p, e)
+					newfunc == env(n, func, dtt1, ::(dtt2, <>))  -- neue funktion bauen
+				IN
+					(dtt1, ::(newfunc, ad2))
+			ELSE
+				LET
+					newfunc == env(n, func, dtt1, <>)  -- neue funktion bauen
+					(dtt2, ad2) == get(p, ::(newfunc, e))
+				IN
+					(dtt1, ad2) -- ok
+			FI
+		FI
+
+DEF get(Type(n, toks), e) ==
+	IF n = ("nat"!) THEN
+		(number, <>)
+	ELSE
+		(boolean, <>)
+	FI
+
+DEF get(SingleArg(n, t, toks), e) ==
+	LET 
+		(dtt1, _) == get(t, e)
+	IN
+		LET
+			newsort == env(n, sort, dtt1, <>)
+		IN
+			(dtt1, ::(newsort, <>))  -- neue sort zurueckgeben
+
+-- erwartet aktuelle funktion als erstes element in env, oder letztes argument
+DEF get(ParamsDecl(p1, p2, toks), e) ==
+	LET
+		(dtt2, ad2) == get(p2,  e)
+	IN
+		LET
+			(dtt1, ad1) == get(p1, ad2 ++ e) 
+		IN
+			IF sort?(type(ft(ad2))) THEN
+				LET
+					-- with this arg as new 1st param
+					newfunc == env(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, ::(dtt2, <>))) 
+				IN
+					(unknown, ::(newfunc, ad2 ++ ad1))
+			ELSE
+				LET
+					-- with this arg as new 1st param
+					newfunc == env(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, pars(ft(ad2))))
+				IN
+					(unknown, ::(newfunc, rt(ad2) ++ ad1))
+			FI
+
+DEF get(_,_) == (unknown, <>)
+
+-- THE LAST LINE

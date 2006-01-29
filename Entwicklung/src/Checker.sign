@@ -43,6 +43,13 @@ TYPE checkResult ==
 	success
 	failure(reasons: diag)
 
+TYPE type   == sort func unknown
+TYPE datatype == number boolean unknown
+
+-- the Environment will be a sequence of env's, carrying identifier, type (func or sort) and return-type
+TYPE env ==
+	env(name:string, type:type, returns:datatype, pars:seq[datatype]) 
+
 FUN check : options ** absy -> checkResult
 
 -- to test the checker from oasys
@@ -51,5 +58,13 @@ FUN checktest : denotation -> checkResult
 -- to print the result
 FUN ` : checkResult -> denotation
 
+-- creates the base environment
+FUN getBaseEnv : seq[env]
+
+-- returns true if the id is in this environment
+FUN isIdInEnvironment : string ** seq[env] -> bool ** env
+
+-- prints the environment
+FUN printEnv : seq[env] -> denotation
 	
 -- THE END

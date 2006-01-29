@@ -72,7 +72,6 @@ DEF `(env(n, func, r, p)) ==
 DEF `(env(n, sort, r, p)) == 
 	"\nsort: " ++ `(n) ++ ", type:" ++ `(r) 
 
-FUN printEnv : seq[env] -> denotation
 DEF printEnv(s) ==
 	IF <>?(s) THEN
 		""
@@ -107,6 +106,7 @@ DEF `(a) ==
 -- the Environment will be a sequence of env's, carrying identifier, type (func or sort) and return-type
 DATA env ==
 	env(name:string, type:type, returns:datatype, pars:seq[datatype]) 
+
 
 -- the 'main' function of this module (exported in .sign)
 DEF check(o, a) ==
@@ -377,7 +377,7 @@ DEF chk(ExprCond(if, then, else, toks), e) ==
 						IF eq(dtt2, dtt3) THEN
 							(success, dtt2, <>)
 						ELSE
-							(failure(error(pos(ft(rt(toks))), "THEN and ELSE part return different datatypes THEN: " ++ `(dtt2) ++ " ELSE: " ++ `(dtt3) ++ printToks(toks))), unknown, <>)
+							(failure(error(pos(ft(rt(toks))), "THEN and ELSE part return different datatypes THEN: " ++ `(dtt2) ++ " ELSE: " ++ `(dtt3) )), unknown, <>)
 						FI
 					ELSE
 						
@@ -429,20 +429,7 @@ DEF `(success) == "checkResult success"
 DEF `(failure(a)) == "checkResult failure: '" ++ `(a) ++ "'"
 
 
-
--- adds a sort to the environment
--- env(name:string, type:type, returns:datatype, pars:seq[datatype]) 
-FUN addSortToEnv : string ** datatype ** seq[env] -> seq[env]
-DEF addSortToEnv(id, datatype, e) == 
-	::(env(id, sort, datatype, <>), e)
-
--- adds a function to the environment
-FUN addFuncToEnv : string ** datatype ** seq[datatype] ** seq[env] -> seq[env]
-DEF addFuncToEnv(id, returndatatype, dtt, e) == 
-	::(env(id, func, returndatatype, dtt), e)
-
 -- returns true if the id is in this environment
-FUN isIdInEnvironment : string ** seq[env] -> bool ** env
 DEF isIdInEnvironment(id, e) ==
 	IF <>?(e) THEN
 		(false, env("error"!, func, boolean, <>))
@@ -456,7 +443,6 @@ DEF isIdInEnvironment(id, e) ==
 	
 		
 -- getBaseEnv creates the basic Environment for MicroOpal-Programs (e.g. adding reserved functions)
-FUN getBaseEnv : seq[env]
 DEF getBaseEnv == 
 	::(env("add"!, func, number, ::(number, ::(number, <>))), 
 	::(env("mul"!, func, number, ::(number, ::(number, <>))), 
