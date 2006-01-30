@@ -1,6 +1,6 @@
 /*
 *	MicroOpal - compiler for a very simple opal slang written in opal
-*	Copyright (C) 2005 Jan Kechel, Marc Schachtel
+*	Copyright (C) 2005/2006 Jan Kechel
 *
 *	This program is free software; you can redistribute it and/or
 *	modify it under the terms of the GNU General Public License
@@ -169,18 +169,17 @@ DEF chk(FuncDecl(n, t, p, toks), e) ==
 		(b, en) == isIdInEnvironment(n, e)
 	IN
 		IF b THEN
-			(failure(error(pos(ft(toks)), "name already exists" ++ printToks(toks))), boolean, <>)
+			(failure(error(pos(ft(toks)), "name already exists: " ++ printToks(toks))), boolean, <>)
 		ELSE
 			LET
 				(cR1, dtt1, ad1) == chk(t, e)
 			IN
 				IF success?(cR1) THEN
-					IF n = ("MAIN"!) THEN -- check for main
+					IF Empty?(p) THEN -- keine Parameter also
 						LET
-							mainfunc == env(n, func, dtt1, <>)
+							newfunc == env(n, func, dtt1, <>)
 						IN
-						(success, dtt1, ::(mainfunc, <>)) -- ok, main hat keine parameter!
-						--(failure(error(global, "Main found: " ++ `(mainfunc))), unknown, <>)
+						(success, dtt1, ::(newfunc, <>)) -- ok, main hat keine parameter!
 					ELSE
 						IF SingleArg?(p) THEN -- falls nur ein parameter, dann hat der absy keinen ParamsDecl-Knoten
 							LET

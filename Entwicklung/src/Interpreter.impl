@@ -1,6 +1,6 @@
 /*
 *	MicroOpal - compiler for a very simple opal slang written in opal
-*	Copyright (C) 2005 Jan Kechel, Marc Schachtel
+*	Copyright (C) 2005/2006 Jan Kechel
 *
 *	This program is free software; you can redistribute it and/or
 *	modify it under the terms of the GNU General Public License
@@ -131,17 +131,21 @@ DEF eval(ExprFunc(n, p, toks), e, params, g) ==
 -- returns: seq[value]
 FUN getAllParameterValues : absy ** eenv ** seq[value] ** seq[eenv] -> seq[value]
 DEF getAllParameterValues(Params(ft, rt, toks), e, v, g) ==
-	LET
-		v1 == eval(ft, e, v, g)
-	IN
-		IF Empty?(rt) THEN
-			::(v1, <>)
-		ELSE
-			LET
-				vs == getAllParameterValues(rt, e, v, g)
-			IN
-				::(v1, vs)
-		FI
+	IF Empty?(ft) THEN
+		<>
+	ELSE
+		LET
+			v1 == eval(ft, e, v, g)
+		IN
+			IF Empty?(rt) THEN
+				::(v1, <>)
+			ELSE
+				LET
+					vs == getAllParameterValues(rt, e, v, g)
+				IN
+					::(v1, vs)
+			FI
+	FI
 			
 
 DEF eval(ExprId(n, toks), e, params, g) ==
@@ -212,12 +216,6 @@ DEF get(FuncDecl(n, t, p, toks), e) ==
 	LET 
 		(dtt1, ad1) == get(t, e)
 	IN
-		IF n = ("MAIN"!) THEN -- check for main
-			LET
-				mainfunc == eenv(n, func, dtt1, <>, <>, FuncDecl(n, t, p, toks))
-			IN
-				(dtt1, ::(mainfunc, <>)) -- ok, main hat keine parameter!
-		ELSE
 			IF SingleArg?(p) THEN -- falls nur ein parameter, dann hat der absy keinen ParamsDecl-Knoten
 				LET
 					(dtt2, ad2) == get(p, e)
@@ -225,13 +223,19 @@ DEF get(FuncDecl(n, t, p, toks), e) ==
 				IN
 					(dtt1, ::(newfunc, ad2))
 			ELSE
-				LET
-					newfunc == eenv(n, func, dtt1, <>, <>, FuncDecl(n, t, p, toks))  -- neue funktion bauen
-					(dtt2, ad2) == get(p, ::(newfunc, e))
-				IN
-					(dtt1, ad2) -- ok
+				IF Empty?(p) THEN -- falls gar kein parameter (z.B. MAIN)
+					LET
+						newfunc == eenv(n, func, dtt1, <>, <>, FuncDecl(n, t, p, toks))
+					IN
+						(dtt1, ::(newfunc, <>))
+				ELSE -- ok, viele parameter (>1)
+					LET
+						newfunc == eenv(n, func, dtt1, <>, <>, FuncDecl(n, t, p, toks))  -- neue funktion bauen
+						(dtt2, ad2) == get(p, ::(newfunc, e))
+					IN
+						(dtt1, ad2) -- ok
+				FI
 			FI
-		FI
 
 DEF get(Type(n, toks), e) ==
 	IF n = ("nat"!) THEN
@@ -259,16 +263,16 @@ DEF get(ParamsDecl(p1, p2, toks), e) ==
 		IN
 			IF sort?(type(ft(ad2))) THEN
 				LET
-					-- with this arg as new 1st param
-					newfunc == eenv(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, ::(dtt2, <>)), ad2 ++ ad1 ++ parnames(ft(e)), ParamsDecl(p1, p2, toks)) 
+					-- append this arg as new param
+					newfunc == eenv(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, ::(dtt2, <>)), parnames(ft(e)) ++ ad1 ++ ad2, ParamsDecl(p1, p2, toks)) 
 				IN
-					(unknown, ::(newfunc, ad2 ++ ad1))
+					(unknown, ::(newfunc, ad1 ++ ad2))
 			ELSE
 				LET
-					-- with this arg as new 1st param
-					newfunc == eenv(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, pars(ft(ad2))), rt(ad2) ++ ad1 ++ parnames(ft(e)), ParamsDecl(p1, p2, toks))
+					-- append this arg as new param
+					newfunc == eenv(name(ft(e)), type(ft(e)), returns(ft(e)), ::(dtt1, pars(ft(ad2))), parnames(ft(e)) ++ ad1 ++ rt(ad2), ParamsDecl(p1, p2, toks))
 				IN
-					(unknown, ::(newfunc, rt(ad2) ++ ad1))
+					(unknown, ::(newfunc,  ad1 ++ rt(ad2)))
 			FI
 
 DEF get(_,_) == (unknown, <>)

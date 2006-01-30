@@ -1,7 +1,7 @@
 
 DEF X(b:bool, c:nat, d:bool) : bool == false
 
-DEF TEST(x:bool, y:bool, z:nat, f:nat, h:nat, j:bool) : nat == 5
+DEF TEST(a:bool, b:bool, c:nat, d:nat, e:nat, f:bool) : nat == 5
 
 DEF JAN(a:bool) : nat ==
 	IF false THEN
@@ -13,7 +13,6 @@ DEF JAN(a:bool) : nat ==
 	ELSE
 		7
 	FI
-
 
 DEF MAIN : nat == JAN(true)
 
