@@ -77,7 +77,7 @@ DEF interpret(Opts, Absy) ==
 		env == getAllFunctions(Absy)
 		(b, main) == isIdInEEnvironment("MAIN"!, env) -- returns MAIN-Function
 	IN
-		eval(absy(main), env, <>)
+		eval(absy(main), main, <>, env)
 
 -- just to test the checker from oasys
 DEF intertest(s) ==
@@ -99,10 +99,11 @@ DEF intertest(s) ==
 				`(undefined(reasons(pr)))
 			FI
 
--- Parameter: funktion, environment, parameter-werte, returns: value
-FUN eval : absy ** seq[eenv] ** seq[value] -> value
+-- Parameter: aktuelle-funktion, aktuelle-environment, aktuelle-parameter-werte, gesamt-environment
+-- returns: value
+FUN eval : absy ** eenv ** seq[value] ** seq[eenv]-> value
 
-DEF eval(ExprTerm(t, toks), e, params) == 
+DEF eval(ExprTerm(t, toks), e, params, g) == 
 		IF t = ("true"!) THEN
 			boolean(true)
 		ELSE
@@ -113,25 +114,52 @@ DEF eval(ExprTerm(t, toks), e, params) ==
 			FI
 		FI
 
-DEF eval(ExprFunc(n, p, toks), e, params) == 
-		undefined(error(global, "ExprFunc nyi"))
+DEF eval(ExprFunc(n, p, toks), e, params, g) == 
+	LET
+		vals == getAllParameterValues(p, e, params, g)
+		(b, fun) == isIdInEEnvironment(n, g)
+	IN
+		IF b THEN
+			eval(absy(fun), fun, vals, g)
+		ELSE
+			exec(n, vals)
+		FI
+				
 
---DEF eval(ExprId(n, toks), e, params) ==
---	IF n = name(ft(e)) THEN
---		ft(params)
---	ELSE
---
---	FI
+-- goes through Params and puts all values on a stack
+-- params: absy of param, current function, current params, total environment
+-- returns: seq[value]
+FUN getAllParameterValues : absy ** eenv ** seq[value] ** seq[eenv] -> seq[value]
+DEF getAllParameterValues(Params(ft, rt, toks), e, v, g) ==
+	LET
+		v1 == eval(ft, e, v, g)
+	IN
+		IF Empty?(rt) THEN
+			::(v1, <>)
+		ELSE
+			LET
+				vs == getAllParameterValues(rt, e, v, g)
+			IN
+				::(v1, vs)
+		FI
+			
 
-
-DEF eval(ExprCond(if, then, else, toks), e, params) ==
-	IF value(eval(if, e, params)) THEN
-		eval(then, e, params)
+DEF eval(ExprId(n, toks), e, params, g) ==
+	IF n = name(ft(parnames(e))) THEN
+		ft(params)
 	ELSE
-		eval(else, e, params)
+		eval(ExprId(n, toks), eenv(name(e), type(e), returns(e), rt(pars(e)), rt(parnames(e)), absy(e)), rt(params), g)
 	FI
 
-DEF eval(_,_,_) == 
+
+DEF eval(ExprCond(if, then, else, toks), e, params, g) ==
+	IF value(eval(if, e, params, g)) THEN
+		eval(then, e, params, g)
+	ELSE
+		eval(else, e, params, g)
+	FI
+
+DEF eval(_,_,_,_) == 
 		undefined(error(global, "Error: eval(_,_,_) got called.. "))
 
 
