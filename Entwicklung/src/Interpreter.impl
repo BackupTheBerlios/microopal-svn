@@ -59,7 +59,6 @@ DEF `(undefined(Why)) == `(Why)
 DEF `(number(Val))    == `(Val)
 DEF `(boolean(Val))   == `(Val)
 
-FUN ` : seq[string] -> denotation
 DEF `(s:seq[string]) == 
 	IF <>?(s) THEN
 		""
@@ -183,8 +182,6 @@ DEF exec(fktname, params) ==
 	FI FI FI FI FI FI FI FI FI
 
 
--- getBaseEnv importet from Checker.sign
-FUN getAllFunctions : absy -> seq[eenv]
 DEF getAllFunctions(a) == 
 	LET
 		(dtt1, ad1) == get(a, <>)
@@ -285,7 +282,6 @@ DEF `(eenv(n, func, r, p, pn, a)) ==
 DEF `(eenv(n, sort, r, p, pn, a)) == 
 	`(n) ++ ":" ++ `(r) 
 
-FUN printEEnv : seq[eenv] -> denotation
 DEF printEEnv(s) ==
 	IF <>?(s) THEN
 		""

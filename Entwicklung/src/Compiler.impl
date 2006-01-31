@@ -19,10 +19,34 @@
 *
 *	the compiler
 *
-*	Steps:
+*	binary encoding:
+*	1 = TRUE
+*	0 = FALSE
+*
+*	Steps: (1 and 2 imported from Interpreter.sign)
 *	1. create base-environment with reserved words
 *	2. parse 1st level of all DEFs in Absy, and add function-names to environment
-*   3. evaluate MAIN
+*   3. ???
+*
+*
+*   List of functions we can use:
+*   -----------------------------
+*
+*	TYPE funEntry ==
+*		funEntry(name: denotation, argc: nat, offset: nat)
+*
+*	TYPE opcode ==
+*		LDPAR(index: nat)
+*		LDNAT(value: nat)
+*		SWAP
+*		ADD
+*		SUB
+*		MUL
+*		DIV
+*		CALL(index: nat)
+*		RET
+*		BRANCH(mode: mode, offset: int)
+*		ABORT
 */
 
 
@@ -30,14 +54,187 @@ IMPLEMENTATION Compiler
 
 IMPORT	Diag		COMPLETELY
 	Pos		COMPLETELY
-
+	Options COMPLETELY
+	Absy COMPLETELY
+	Token COMPLETELY
+	Seq COMPLETELY
+    String COMPLETELY
+	StringConv COMPLETELY
+	Denotation COMPLETELY
+	Interpreter COMPLETELY
+	MOM COMPLETELY
+	Nat COMPLETELY
+	NatConv COMPLETELY
+	Array COMPLETELY
+	ArrayConv COMPLETELY
+	Int COMPLETELY
 
 DATA compileResult == 
 	success (program: program'MOM)
 	failure (reasons: diag)
 
-DEF compile(_,_) ==
-    failure(error(global, "the compiler is not yet implemented!"))
+DEF compile(Opts,Absy) ==
+	LET
+		-- 1. Declarationen einlesen
+		environment == getAllFunctions(Absy)
+
+		-- 2. main extrahieren
+		(main, rest) == extractMain(environment, <>)
+
+		-- 3. opcode fuer main erstellen
+		(fkt_entry_main, fkt_opcode_main) == getAllFunctionsAsOpcode(::(main, <>), environment)
+
+		-- 4. opcode fuer restliche funktionen erstellen
+		(fkt_entrys, fkt_opcodes) == getAllFunctionsAsOpcode(rest, environment)
+
+		-- 5. funEntry's mit Offsets erweitern
+		(fkt_entrys_enhanced) == enhanceFktEntrysWithOffsets(#(ft(fkt_opcode_main)), fkt_entrys, fkt_opcodes)
+	IN
+	success(program(0, 
+				asArray(fkt_entrys_enhanced),
+				asArray(ft(fkt_opcode_main) ++ concatSeqOfSeqOpcode( fkt_opcodes))))
+
+FUN extractMain : seq[eenv] ** seq[eenv] -> eenv ** seq[eenv]
+DEF extractMain(from, to) ==
+	IF name(ft(from)) = ("MAIN"!) THEN
+		(ft(from), rt(from) ++ to)
+	ELSE
+		extractMain(rt(from), ::(ft(from), to))
+	FI
+
+-- returns the fun-entrys for all functions without the offset, and the opcodes for each function
+-- the first seq[eenv] recursively looses its elements, until all functions have been processed
+-- the second seq[eenv] remains the complete environment for all functions
+FUN getAllFunctionsAsOpcode : seq[eenv] ** seq[eenv] -> seq[funEntry] ** seq[seq[opcode]]
+DEF getAllFunctionsAsOpcode(e, g) ==
+	IF <>?(e) THEN
+		(<>, <>)
+	ELSE
+		LET
+			(remain_funentrys, remain_opcodes) == getAllFunctionsAsOpcode(rt(e), g)
+			new_funentry == funEntry( `(name(ft(e))), #(pars(ft(e))), 0) -- offset stays 0 here, we will fill this later
+		IN	-- don't forget to return from each function at the end ;-)
+			(::(new_funentry, remain_funentrys), 
+			 ::(getOpcodeForAbsy( absy(ft(e)), ft(e), g) ++ ::(RET, <>), remain_opcodes))
+	FI
+
+-- params: Absy of Function-Implementation, eenv of current function, total environment
+-- returns: seq of opcodes implementing this function
+FUN getOpcodeForAbsy : absy ** eenv ** seq[eenv] -> seq[opcode]
+
+DEF getOpcodeForAbsy(ExprTerm(t, toks), e, g) == 
+		IF t = ("true"!) THEN
+			LDNAT(1) :: <>
+		ELSE
+			IF t = ("false"!) THEN
+				LDNAT(0) :: <>
+			ELSE
+				LDNAT( (`(t))!) :: <>
+			FI
+		FI
+
+DEF getOpcodeForAbsy(ExprFunc(n, p, toks), e, g) == 
+	LET
+		param_values == getOpcodeForAbsy(p, e, g)
+		fun == getEEnvNo(n, g, 1)
+	IN
+		IF fun = 0 THEN
+			param_values ++
+			getBaseFkt(n)
+		ELSE
+			param_values ++
+			CALL(fun - 1) :: <> -- getEEnvNo always returns 1 higher then real (0 is not found)
+		FI
+				
+-- params: absy of param, current function, total environment
+-- returns: seq[value]
+DEF getOpcodeForAbsy(Params(ft, rt, toks), e, g) ==
+	IF Empty?(ft) THEN
+		<>
+	ELSE
+		LET
+			v1 == getOpcodeForAbsy(ft, e, g)
+		IN
+			IF Empty?(rt) THEN
+				v1 ++ <>
+			ELSE
+				LET
+					vs == getOpcodeForAbsy(rt, e, g)
+				IN
+					v1 ++ vs
+			FI
+	FI
+			
+DEF getOpcodeForAbsy(ExprId(n, toks), e, g) ==
+	LET
+		arg == getEEnvNo(n, parnames(e), 1) 
+	IN
+		LDPAR(arg - 1) :: <> -- first parameter has index 0
+
+-- returns 0 if not found
+FUN getEEnvNo : string ** seq[eenv] ** nat -> nat
+DEF getEEnvNo(n, pars, count) ==
+	IF <>?(pars) THEN
+		0
+	ELSE
+		IF n = name(ft(pars)) THEN
+			count
+		ELSE
+			getEEnvNo(n, rt(pars), count + 1)
+		FI
+	FI
+
+DEF getOpcodeForAbsy(ExprCond(if, then, else, toks), e, g) ==
+	LET
+		if_op == getOpcodeForAbsy(if, e, g)
+		then_op == getOpcodeForAbsy(then, e, g)
+		else_op == getOpcodeForAbsy(else, e, g)
+	IN
+		if_op ++
+		::(BRANCH(z, asInt((#(then_op)) + 1)), <>) ++ -- +1 to jump over that jump always command
+		then_op ++
+		::(BRANCH(always, asInt(#(else_op))), <>) ++
+		else_op 
+
+-- this should never happen ..
+DEF getOpcodeForAbsy(_,_,_) == 
+    ABORT :: ABORT :: ABORT :: <>
+
+-- param 1: offset
+FUN enhanceFktEntrysWithOffsets : nat ** seq[funEntry] ** seq[seq[opcode]] -> seq[funEntry]
+DEF enhanceFktEntrysWithOffsets(offset, fe, sso) == 
+	IF <>?(fe) THEN
+		<>
+	ELSE
+		::(funEntry(name(ft(fe)), argc(ft(fe)), offset), enhanceFktEntrysWithOffsets(offset + #(ft(sso)), rt(fe), rt(sso)))
+	FI
+
+FUN concatSeqOfSeqOpcode : seq[seq[opcode]] -> seq[opcode]
+DEF concatSeqOfSeqOpcode(sso) ==
+	IF <>?(sso) THEN
+		<>
+	ELSE
+		ft(sso) ++ concatSeqOfSeqOpcode(rt(sso))
+	FI
+
+FUN getBaseFkt : string -> seq[opcode]
+DEF getBaseFkt(fktname) ==
+	LET
+		check == (BRANCH(error, 1) :: BRANCH(always, 1) :: ABORT :: <>)
+	IN
+		IF 
+			fktname = ("add"!) THEN ADD :: check ELSE IF 
+			fktname = ("mul"!) THEN MUL :: check ELSE IF 
+			fktname = ("sub"!) THEN SWAP :: SUB :: check ELSE IF 
+			fktname = ("div"!) THEN SWAP :: DIV :: check ELSE IF 
+			fktname = ("eq"!)  THEN BRANCH(eq, 2) :: LDNAT(0) :: BRANCH(always, 1) :: LDNAT(1) :: <> ELSE IF 
+			fktname = ("lt"!)  THEN BRANCH(lt, 2) :: LDNAT(0) :: BRANCH(always, 1) :: LDNAT(1) :: <> ELSE IF 
+			fktname = ("and"!) THEN BRANCH(z, 3) :: BRANCH(z, 2) :: LDNAT(1) :: BRANCH(always, 1) :: LDNAT(0) :: <> ELSE IF 
+			fktname = ("or"!)  THEN BRANCH(nz, 3) :: BRANCH(nz, 2) :: LDNAT(0) :: BRANCH(always, 1) :: LDNAT(1) :: <> ELSE IF 
+			fktname = ("not"!) THEN BRANCH(z, 2) :: LDNAT(0) :: BRANCH(always, 1) :: LDNAT(1) :: <> 
+			ELSE <>
+		FI FI FI FI FI FI FI FI FI
 
 
 
+-- THE LAST LINE

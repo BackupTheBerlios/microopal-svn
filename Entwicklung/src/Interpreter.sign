@@ -38,6 +38,10 @@ SIGNATURE Interpreter
 IMPORT	Absy		ONLY absy:SORT
 	Diag		ONLY diag:SORT
 	Options		ONLY options:SORT
+	Denotation COMPLETELY
+	Parser COMPLETELY
+	Checker COMPLETELY
+
 
 IMPORT	Nat		ONLY nat:SORT	
 
@@ -47,6 +51,11 @@ TYPE value ==
 	number    (value  : nat)
 	boolean   (value  : bool)
 
+-- um absy-knoten und variablennamen erweiterte environment
+TYPE eenv == 
+	eenv(name:string, type:type, returns:datatype, pars:seq[datatype], parnames:seq[eenv], absy:absy) 
+
+
 FUN ` : value -> denotation
 
 FUN interpret : options ** absy -> value
@@ -54,4 +63,7 @@ FUN interpret : options ** absy -> value
 -- to test the checker from oasys
 FUN intertest : denotation -> denotation
 
+FUN ` : seq[string] -> denotation
+FUN getAllFunctions : absy -> seq[eenv]
+FUN printEEnv : seq[eenv] -> denotation
 
