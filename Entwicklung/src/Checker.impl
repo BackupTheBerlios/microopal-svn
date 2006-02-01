@@ -47,6 +47,8 @@ IMPORT	Diag		COMPLETELY
 	StringConv COMPLETELY
 	Parser COMPLETELY
 	Denotation COMPLETELY
+	Nat COMPLETELY
+	NatConv COMPLETELY
 
 DATA checkResult == 
 	success
@@ -106,9 +108,31 @@ DATA env ==
 -- the 'main' function of this module (exported in .sign)
 DEF check(o, a) ==
 	LET
-		(cr, dtt, _) == chk(a, getBaseEnv)
+		(cr, dtt, e) == chk(a, getBaseEnv)
+		count_main == countIdInEnv(0, ("MAIN"!), e)
 	IN
-		cr
+		IF success?(cr) THEN
+			IF count_main = 1 THEN
+				-- ok, one MAIN found
+				cr
+			ELSE
+				failure(error(global, "Exactly one MAIN required, found: " ++ `(count_main) ))
+			FI
+		ELSE
+			cr
+		FI
+
+FUN countIdInEnv : nat ** string ** seq[env] -> nat
+DEF countIdInEnv(c, n, e) ==
+	IF <>?(e) THEN
+		c
+	ELSE
+		IF name(ft(e)) = n THEN
+			countIdInEnv(c + 1, n, rt(e))
+		ELSE
+			countIdInEnv(c, n, rt(e))
+		FI
+	FI
 
 FUN eq : datatype ** datatype -> bool
 DEF eq(number, number) == true
@@ -131,7 +155,7 @@ DEF chk(Prog(ftt,rtt), e) ==
 				(cR2, dtt2, ad2) == chk(rtt, ::(ft(ad1), e)) -- add new function to env
 			IN
 				IF success?(cR2) THEN
-					(success, dtt1, <>)
+					(success, dtt1, e ++ ad1 ++ ad2)
 				ELSE
 					(cR2, dtt2, <>)
 				FI
@@ -414,7 +438,6 @@ DEF checktest(s) ==
 			ELSE
 				failure(error(global, "parser error"))
 			FI
-
 
 DEF chk(_, _) == 
 			(failure(error(global, "broken absy, correct parser!")), boolean, <>)
